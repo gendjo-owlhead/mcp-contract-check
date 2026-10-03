@@ -3,6 +3,44 @@ import * as github from "@actions/github";
 import { runContractCheck } from "@local/mcp-contract-check";
 import { verifyLicense } from "./license.js";
 
+export function parseHeaders(raw?: string): Record<string, string> | undefined {
+  if (!raw || !raw.trim()) {
+    return undefined;
+  }
+  const trimmed = raw.trim();
+  if (trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (typeof parsed === "object" && parsed !== null && !Array.isArray(parsed)) {
+        const result: Record<string, string> = {};
+        for (const [key, val] of Object.entries(parsed)) {
+          result[key] = String(val);
+        }
+        return result;
+      }
+    } catch {
+      // Fall through to line-based parsing
+    }
+  }
+
+  const result: Record<string, string> = {};
+  const lines = trimmed.split("\n");
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine || trimmedLine.startsWith("#")) continue;
+    const colonIndex = trimmedLine.indexOf(":");
+    if (colonIndex > 0) {
+      const key = trimmedLine.slice(0, colonIndex).trim();
+      const value = trimmedLine.slice(colonIndex + 1).trim();
+      if (key) {
+        result[key] = value;
+      }
+    }
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
 export async function run(
   customFetch?: typeof fetch
 ): Promise<void> {
@@ -58,12 +96,29 @@ export async function run(
       }
     }
 
-    const command = core.getInput("command", { required: true });
+    const command = core.getInput("command") || undefined;
+    const url = core.getInput("url") || undefined;
+
+    if (!command && !url) {
+      core.setFailed("Either 'command' or 'url' must be provided");
+      return;
+    }
+
     const cases = core.getInput("cases") || "cases";
+    const headers = parseHeaders(core.getInput("headers"));
+    const fuzzInput = core.getInput("fuzz");
+    const fuzz = fuzzInput === "true" || fuzzInput === "1";
+    const baseline = core.getInput("baseline") || undefined;
+    const saveContract = core.getInput("save-contract") || undefined;
 
     const checkSummary = await runContractCheck({
       command,
+      url,
+      headers,
       casesDir: cases,
+      fuzz,
+      baseline,
+      saveContract,
     });
 
     if (checkSummary.success) {

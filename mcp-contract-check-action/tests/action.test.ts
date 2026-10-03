@@ -40,8 +40,8 @@ vi.mock("@actions/github", () => ({
   },
 }));
 
-// Import run after mocks are set
-import { run } from "../src/action.js";
+// Import run and parseHeaders after mocks are set
+import { parseHeaders, run } from "../src/action.js";
 
 describe("mcp-contract-check-action", () => {
   beforeEach(() => {
@@ -177,6 +177,42 @@ describe("mcp-contract-check-action", () => {
         body: `license_key=key-needs-activation&instance_name=${encodeURIComponent("private/repo")}`,
       })
     );
+    expect(failedMessage).toBeNull();
+    expect(infoMessages).toContain("ok");
+  });
+
+  it("header parser parses key-value lines and JSON", () => {
+    expect(parseHeaders(undefined)).toBeUndefined();
+    expect(parseHeaders("")).toBeUndefined();
+    expect(
+      parseHeaders("Authorization: Bearer token\nX-Custom: hello")
+    ).toEqual({
+      Authorization: "Bearer token",
+      "X-Custom": "hello",
+    });
+    expect(parseHeaders('{"Authorization": "Bearer 123"}')).toEqual({
+      Authorization: "Bearer 123",
+    });
+  });
+
+  it("fails if neither command nor url is provided", async () => {
+    mockPayload.repository = { private: false, full_name: "public/repo" };
+    const mockFetch = vi.fn();
+
+    await run(mockFetch as unknown as typeof fetch);
+
+    expect(failedMessage).toBe("Either 'command' or 'url' must be provided");
+  });
+
+  it("runs with fuzz mode enabled on fixed server", async () => {
+    mockPayload.repository = { private: false, full_name: "public/repo" };
+    inputs["command"] = `node "${demoServerPath}" --fixed`;
+    inputs["cases"] = "non-existent-cases-folder";
+    inputs["fuzz"] = "true";
+
+    const mockFetch = vi.fn();
+    await run(mockFetch as unknown as typeof fetch);
+
     expect(failedMessage).toBeNull();
     expect(infoMessages).toContain("ok");
   });
