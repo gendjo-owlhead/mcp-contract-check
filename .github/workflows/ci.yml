@@ -17,16 +17,17 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "npm"
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Build monorepo packages
-        run: npm run build
+      - name: Install dependencies & build
+        run: |
+          cd mcp-contract-check && npm install && npm run build
+          cd ../mcp-contract-check-action && npm install && npm run build
+          cd ../mcp-check-demo && npm install
 
       - name: Run unit & integration tests
-        run: npm test
+        run: |
+          cd mcp-contract-check && npm test
+          cd ../mcp-contract-check-action && npm test
 
       - name: Run Action on demo server
         uses: ./
