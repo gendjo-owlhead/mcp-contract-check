@@ -25,4 +25,4 @@ jobs:
 ## Licensing
 
 Public repositories run completely free with no license key required.
-Paid license for private repos: CHECKOUT_URL
+Paid license for private repos: https://buy.stripe.com/test_00w5kEdrja601U7c3AgrS00

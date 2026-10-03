@@ -76,7 +76,9 @@ describe("mcp-contract-check-action", () => {
     await run(mockFetch as unknown as typeof fetch);
 
     expect(mockFetch).not.toHaveBeenCalled();
-    expect(failedMessage).toBe("Private repos require a license: CHECKOUT_URL");
+    expect(failedMessage).toBe(
+      "Private repos require a license: https://buy.stripe.com/test_00w5kEdrja601U7c3AgrS00"
+    );
   });
 
   it("private repo, validate returns valid:true: check runs", async () => {
