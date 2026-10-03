@@ -3,6 +3,8 @@ import { runContractCheck } from "./checker.js";
 
 function parseArgs(args: string[]): {
   command?: string;
+  url?: string;
+  headers?: Record<string, string>;
   cases?: string;
   fuzz?: boolean;
   baseline?: string;
@@ -12,6 +14,8 @@ function parseArgs(args: string[]): {
 } {
   const result: {
     command?: string;
+    url?: string;
+    headers?: Record<string, string>;
     cases?: string;
     fuzz?: boolean;
     baseline?: string;
@@ -32,6 +36,30 @@ function parseArgs(args: string[]): {
       result.command = args[++i];
     } else if (arg.startsWith("--command=")) {
       result.command = arg.slice("--command=".length);
+    } else if (arg === "--url" || arg === "-u") {
+      result.url = args[++i];
+    } else if (arg.startsWith("--url=")) {
+      result.url = arg.slice("--url=".length);
+    } else if (arg === "--header" || arg === "-H") {
+      const headerStr = args[++i];
+      if (headerStr) {
+        const colonIdx = headerStr.indexOf(":");
+        if (colonIdx > 0) {
+          const key = headerStr.slice(0, colonIdx).trim();
+          const val = headerStr.slice(colonIdx + 1).trim();
+          result.headers = result.headers || {};
+          result.headers[key] = val;
+        }
+      }
+    } else if (arg.startsWith("--header=")) {
+      const headerStr = arg.slice("--header=".length);
+      const colonIdx = headerStr.indexOf(":");
+      if (colonIdx > 0) {
+        const key = headerStr.slice(0, colonIdx).trim();
+        const val = headerStr.slice(colonIdx + 1).trim();
+        result.headers = result.headers || {};
+        result.headers[key] = val;
+      }
     } else if (arg === "--cases" || arg === "-d") {
       result.cases = args[++i];
     } else if (arg.startsWith("--cases=")) {
@@ -57,10 +85,12 @@ async function main(): Promise<void> {
     console.log(`mcp-check - Model Context Protocol tool contract testing
 
 Usage:
-  mcp-check --command "<stdio server command>" [options]
+  mcp-check (--command "<stdio server command>" | --url "<sse url>") [options]
 
 Options:
-  -c, --command <cmd>        The stdio server command to start your MCP server (required)
+  -c, --command <cmd>        The stdio server command to start your MCP server
+  -u, --url <url>            Remote MCP server SSE endpoint URL (e.g. http://localhost:8080/sse)
+  -H, --header <key:val>     HTTP header to pass with remote SSE requests (can be specified multiple times)
   -d, --cases <dir>          Directory containing test case fixtures (default: "cases")
   -f, --fuzz                 Synthesize valid arguments from tool input schemas when fixtures are missing
   -b, --baseline <file>      Fail if server contracts introduce breaking changes against baseline JSON
@@ -76,14 +106,16 @@ Options:
     process.exit(0);
   }
 
-  if (!parsed.command) {
-    console.error('Error: missing required option --command "<stdio server command>"');
-    console.error('Usage: mcp-check --command "<stdio server command>" [options]');
+  if (!parsed.command && !parsed.url) {
+    console.error('Error: missing required target option. Specify either --command "<cmd>" or --url "<url>"');
+    console.error('Usage: mcp-check (--command "<stdio server command>" | --url "<sse url>") [options]');
     process.exit(1);
   }
 
   const result = await runContractCheck({
     command: parsed.command,
+    url: parsed.url,
+    headers: parsed.headers,
     casesDir: parsed.cases ?? "cases",
     fuzz: Boolean(parsed.fuzz),
     baseline: parsed.baseline,

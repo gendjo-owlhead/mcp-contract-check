@@ -271,4 +271,20 @@ describe("runContractCheck", () => {
       }
     }
   });
+
+  it("rejects invalid URL cleanly", async () => {
+    const res = await runContractCheck({
+      url: "not-a-valid-url",
+    });
+
+    expect(res.success).toBe(false);
+    expect(res.report).toContain("Invalid URL");
+  });
+
+  it("rejects when neither command nor url is provided", async () => {
+    const res = await runContractCheck({});
+
+    expect(res.success).toBe(false);
+    expect(res.report).toContain("Missing both command and url options");
+  });
 });

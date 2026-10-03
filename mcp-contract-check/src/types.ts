@@ -16,7 +16,9 @@ export interface CaseResult {
 }
 
 export interface CheckOptions {
-  command: string;
+  command?: string;
+  url?: string;
+  headers?: Record<string, string>;
   casesDir?: string;
   fuzz?: boolean;
   baseline?: string;

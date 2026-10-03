@@ -41,4 +41,5 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Default fixture check](./default-fixture-check.md) covers zero-config tool validation when no fixture directory is provided.
 - [Fuzz schema generation](./fuzz-schema-generation.md) covers automatic test argument synthesis from tool input schemas via `--fuzz`.
 - [Breaking change detection](./breaking-change-detection.md) covers snapshotting contracts with `--save-contract` and detecting breaking schema drift with `--baseline`.
+- [Remote SSE transport](./remote-sse-transport.md) covers connecting to remote MCP servers over HTTP/SSE with `--url` and `--header`.
 - [CLI help and version](./cli-help-and-version.md) covers CLI flags `--help`, `--version`, and required argument validation.

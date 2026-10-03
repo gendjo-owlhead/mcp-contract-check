@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
+import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { parseCommandLine } from "./command-parser.js";
 import { ContractDiff, type ContractSnapshot, type DiffResult } from "./diff.js";
 import { buildCasesForTools, loadFixtures } from "./fixtures.js";
@@ -55,15 +57,81 @@ export function formatReport(results: CaseResult[]): string {
 }
 
 export async function runContractCheck(options: CheckOptions): Promise<CheckSummary> {
-  const { command: commandStr, casesDir = "cases", timeoutMs = 30000 } = options;
+  const { casesDir = "cases", timeoutMs = 30000 } = options;
   const results: CaseResult[] = [];
   let diffResult: DiffResult | undefined;
 
-  let parsed: { command: string; args: string[] };
-  try {
-    parsed = parseCommandLine(commandStr);
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : String(err);
+  let transport: Transport;
+  let getStderrLog = (): string => "";
+
+  if (options.url) {
+    let urlObj: URL;
+    try {
+      urlObj = new URL(options.url);
+    } catch {
+      return {
+        success: false,
+        totalCases: 0,
+        passedCases: 0,
+        failedCases: 1,
+        results: [
+          {
+            tool: "(server)",
+            caseFile: "(none)",
+            expected: "valid server URL",
+            actual: `Invalid URL: ${options.url}`,
+            passed: false,
+          },
+        ],
+        report: `Tool: (server)\nCase: (none)\nExpected: valid server URL\nActual: Invalid URL: ${options.url}`,
+      };
+    }
+
+    transport = new SSEClientTransport(urlObj, {
+      requestInit: options.headers ? { headers: options.headers } : undefined,
+    });
+  } else if (options.command) {
+    let parsed: { command: string; args: string[] };
+    try {
+      parsed = parseCommandLine(options.command);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return {
+        success: false,
+        totalCases: 0,
+        passedCases: 0,
+        failedCases: 1,
+        results: [
+          {
+            tool: "(server)",
+            caseFile: "(none)",
+            expected: "valid server command",
+            actual: message,
+            passed: false,
+          },
+        ],
+        report: `Tool: (server)\nCase: (none)\nExpected: valid server command\nActual: ${message}`,
+      };
+    }
+
+    const stdioTransport = new StdioClientTransport({
+      command: parsed.command,
+      args: parsed.args,
+      stderr: "pipe",
+    });
+
+    const stderrChunks: Buffer[] = [];
+    stdioTransport.stderr?.on("data", (chunk: Buffer | string) => {
+      stderrChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+
+    getStderrLog = (): string => {
+      const raw = Buffer.concat(stderrChunks).toString("utf-8").trim();
+      return raw ? `\nServer stderr:\n${raw}` : "";
+    };
+
+    transport = stdioTransport;
+  } else {
     return {
       success: false,
       totalCases: 0,
@@ -73,30 +141,14 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
         {
           tool: "(server)",
           caseFile: "(none)",
-          expected: "valid server command",
-          actual: message,
+          expected: "server command or URL",
+          actual: "Missing both command and url options",
           passed: false,
         },
       ],
-      report: `Tool: (server)\nCase: (none)\nExpected: valid server command\nActual: ${message}`,
+      report: `Tool: (server)\nCase: (none)\nExpected: server command or URL\nActual: Missing both command and url options`,
     };
   }
-
-  const transport = new StdioClientTransport({
-    command: parsed.command,
-    args: parsed.args,
-    stderr: "pipe",
-  });
-
-  const stderrChunks: Buffer[] = [];
-  transport.stderr?.on("data", (chunk: Buffer | string) => {
-    stderrChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-  });
-
-  const getStderrLog = (): string => {
-    const raw = Buffer.concat(stderrChunks).toString("utf-8").trim();
-    return raw ? `\nServer stderr:\n${raw}` : "";
-  };
 
   const client = new Client(
     { name: "mcp-contract-check", version: "1.0.0" },
@@ -118,12 +170,12 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
           {
             tool: "(server)",
             caseFile: "(none)",
-            expected: "successful connection over stdio",
+            expected: options.url ? "successful connection over SSE" : "successful connection over stdio",
             actual: `failed to connect to server: ${message}${stderrLog}`,
             passed: false,
           },
         ],
-        report: `Tool: (server)\nCase: (none)\nExpected: successful connection over stdio\nActual: failed to connect to server: ${message}${stderrLog}`,
+        report: `Tool: (server)\nCase: (none)\nExpected: ${options.url ? "successful connection over SSE" : "successful connection over stdio"}\nActual: failed to connect to server: ${message}${stderrLog}`,
       };
     }
 
