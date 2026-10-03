@@ -2,7 +2,6 @@ services:
   - type: web
     name: mcp-license-service
     runtime: docker
-    dockerfilePath: license-service/Dockerfile
     dockerContext: license-service
     plan: free
     healthCheckPath: /health
