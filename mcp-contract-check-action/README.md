@@ -105,7 +105,9 @@ jobs:
 
 ## Licensing
 
-- **Public Repositories**: Completely free. No license key or registration required.
-- **Private Repositories**: Requires an active license (€29/month + VAT).
+- **Public Repositories**: Completely free forever. No license key or registration required.
+- **Private Repositories**:
+  - **14-Day Free Evaluation Trial**: Automatic in GitHub Actions. No upfront credit card required.
+  - **Standard Subscription**: €29/month per private repository.
   - [Purchase License via Stripe](https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00)
   - Provide your Stripe billing email, Subscription ID (`sub_...`), or Customer ID (`cus_...`) as the `license-key` input or repository secret.

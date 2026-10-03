@@ -1,7 +1,7 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
 import { runContractCheck } from "@local/mcp-contract-check";
-import { verifyLicense } from "./license.js";
+import { checkTrial, verifyLicense } from "./license.js";
 
 export function parseHeaders(raw?: string): Record<string, string> | undefined {
   if (!raw || !raw.trim()) {
@@ -66,13 +66,6 @@ export async function run(
 
     if (isPrivate) {
       const licenseKey = core.getInput("license-key");
-      if (!licenseKey) {
-        core.setFailed(
-          "Private repos require a license: https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00"
-        );
-        return;
-      }
-
       const repoPayload = github.context.payload?.repository;
       const instanceName =
         repoPayload?.full_name ||
@@ -82,17 +75,48 @@ export async function run(
         core.getInput("license-server-url") ||
         process.env.MCP_LICENSE_SERVER_URL;
 
-      const licenseResult = await verifyLicense({
-        licenseKey,
-        instanceName,
-        serverUrl: serverUrl || undefined,
-        fetchFn: customFetch,
-        timeoutMs: 10000,
-      });
+      if (!licenseKey) {
+        const trialResult = await checkTrial({
+          instanceName,
+          serverUrl: serverUrl || undefined,
+          fetchFn: customFetch,
+          timeoutMs: 10000,
+        });
 
-      if (!licenseResult.valid) {
-        core.setFailed(licenseResult.error || "License verification failed");
-        return;
+        if (trialResult.valid && trialResult.trial) {
+          const days = trialResult.daysRemaining ?? 14;
+          const checkoutUrl =
+            trialResult.checkoutUrl ||
+            "https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00";
+          if (typeof core.notice === "function") {
+            core.notice(
+              `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Subscribe at ${checkoutUrl} to maintain uninterrupted CI.`
+            );
+          } else {
+            core.info(
+              `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Subscribe at ${checkoutUrl}`
+            );
+          }
+        } else {
+          core.setFailed(
+            trialResult.error ||
+              "Private repos require an active license or trial: https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00"
+          );
+          return;
+        }
+      } else {
+        const licenseResult = await verifyLicense({
+          licenseKey,
+          instanceName,
+          serverUrl: serverUrl || undefined,
+          fetchFn: customFetch,
+          timeoutMs: 10000,
+        });
+
+        if (!licenseResult.valid) {
+          core.setFailed(licenseResult.error || "License verification failed");
+          return;
+        }
       }
     }
 

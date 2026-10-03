@@ -3,6 +3,81 @@ export interface LicenseCheckResult {
   error?: string;
 }
 
+export interface TrialCheckResult {
+  valid: boolean;
+  trial?: boolean;
+  daysRemaining?: number;
+  expiresAt?: string;
+  checkoutUrl?: string;
+  error?: string;
+}
+
+export interface TrialCheckOptions {
+  instanceName: string;
+  serverUrl?: string;
+  fetchFn?: typeof fetch;
+  timeoutMs?: number;
+}
+
+export async function checkTrial(
+  options: TrialCheckOptions
+): Promise<TrialCheckResult> {
+  const {
+    instanceName,
+    serverUrl,
+    fetchFn = fetch,
+    timeoutMs = 10000,
+  } = options;
+
+  const defaultUrl = "https://mcp-license-service.onrender.com";
+  const baseUrl = (
+    serverUrl ||
+    process.env.MCP_LICENSE_SERVER_URL ||
+    defaultUrl
+  ).replace(/\/+$/, "");
+  const trialUrl = `${baseUrl}/v1/licenses/trial`;
+
+  try {
+    const res = await fetchFn(trialUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+      body: `instance_name=${encodeURIComponent(instanceName)}`,
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+
+    if (res.status === 200) {
+      const raw = (await res.json()) as Record<string, any>;
+      return {
+        valid: Boolean(raw.valid),
+        trial: raw.trial !== undefined ? Boolean(raw.trial) : undefined,
+        daysRemaining:
+          typeof raw.daysRemaining === "number"
+            ? raw.daysRemaining
+            : typeof raw.days_remaining === "number"
+            ? raw.days_remaining
+            : undefined,
+        expiresAt: raw.expiresAt || raw.expires_at,
+        checkoutUrl: raw.checkoutUrl || raw.checkout_url,
+        error: raw.error,
+      };
+    }
+
+    return {
+      valid: false,
+      error: `Trial evaluation failed (server returned HTTP ${res.status})`,
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      valid: false,
+      error: `Failed to contact license server for trial evaluation: ${message}`,
+    };
+  }
+}
+
 export interface LicenseVerifyOptions {
   licenseKey: string;
   instanceName: string;

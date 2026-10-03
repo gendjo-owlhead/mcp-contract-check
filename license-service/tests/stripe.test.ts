@@ -120,4 +120,22 @@ describe("Express API Endpoints", () => {
     expect(res.status).toBe(400);
     expect(res.body.error).toContain("license_key is required");
   });
+
+  it("POST /v1/licenses/trial starts a 14-day trial", async () => {
+    const res = await request(app)
+      .post("/v1/licenses/trial")
+      .send({ instance_name: "test-org/private-repo" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.valid).toBe(true);
+    expect(res.body.trial).toBe(true);
+    expect(res.body.daysRemaining).toBe(14);
+    expect(res.body.checkoutUrl).toBeDefined();
+  });
+
+  it("POST /v1/licenses/trial rejects missing instance_name", async () => {
+    const res = await request(app).post("/v1/licenses/trial").send({});
+    expect(res.status).toBe(400);
+    expect(res.body.valid).toBe(false);
+  });
 });

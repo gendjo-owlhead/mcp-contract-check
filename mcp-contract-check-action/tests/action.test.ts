@@ -9,6 +9,7 @@ const demoCasesDir = path.resolve(__dirname, "../../mcp-check-demo/cases");
 const inputs: Record<string, string> = {};
 let failedMessage: string | null = null;
 let infoMessages: string[] = [];
+let noticeMessages: string[] = [];
 const outputs: Record<string, string> = {};
 
 vi.mock("@actions/core", () => ({
@@ -21,6 +22,9 @@ vi.mock("@actions/core", () => ({
   }),
   info: vi.fn((msg: string) => {
     infoMessages.push(msg);
+  }),
+  notice: vi.fn((msg: string) => {
+    noticeMessages.push(msg);
   }),
   summary: {
     addHeading: vi.fn().mockReturnThis(),
@@ -63,6 +67,7 @@ describe("mcp-contract-check-action", () => {
     }
     failedMessage = null;
     infoMessages = [];
+    noticeMessages = [];
     delete mockPayload.repository;
     vi.clearAllMocks();
   });
@@ -80,18 +85,57 @@ describe("mcp-contract-check-action", () => {
     expect(failedMessage).toContain("Tool: echo");
   });
 
-  it("private repo, no key: fails with the CHECKOUT_URL line, no server started", async () => {
+  it("private repo, no key, active trial: runs check and emits core notice", async () => {
     mockPayload.repository = { private: true, full_name: "private/repo" };
-    inputs["command"] = "node nonexistent-server.js";
+    inputs["command"] = `node "${demoServerPath}" --fixed`;
+    inputs["cases"] = demoCasesDir;
     inputs["license-key"] = "";
 
-    const mockFetch = vi.fn();
+    const mockFetch = vi.fn().mockResolvedValueOnce({
+      status: 200,
+      json: async () => ({
+        valid: true,
+        trial: true,
+        days_remaining: 11,
+        checkout_url: "https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00",
+      }),
+    });
+
     await run(mockFetch as unknown as typeof fetch);
 
-    expect(mockFetch).not.toHaveBeenCalled();
-    expect(failedMessage).toBe(
-      "Private repos require a license: https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00"
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://mcp-license-service.onrender.com/v1/licenses/trial",
+      expect.objectContaining({
+        method: "POST",
+        body: "instance_name=private%2Frepo",
+      })
     );
+    expect(failedMessage).toBeNull();
+    expect(noticeMessages.length).toBe(1);
+    expect(noticeMessages[0]).toContain("11 days remaining");
+    expect(infoMessages).toContain("ok");
+  });
+
+  it("private repo, no key, expired trial: fails with checkout url", async () => {
+    mockPayload.repository = { private: true, full_name: "private/repo" };
+    inputs["command"] = `node "${demoServerPath}" --fixed`;
+    inputs["license-key"] = "";
+
+    const mockFetch = vi.fn().mockResolvedValueOnce({
+      status: 200,
+      json: async () => ({
+        valid: false,
+        trial: false,
+        error: "Trial for 'private/repo' expired. Subscribe at https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00",
+        checkout_url: "https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00",
+      }),
+    });
+
+    await run(mockFetch as unknown as typeof fetch);
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(failedMessage).toContain("expired");
   });
 
   it("private repo, validate returns valid:true: check runs", async () => {

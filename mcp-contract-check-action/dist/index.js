@@ -19815,10 +19815,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports.warning = warning;
-    function notice(message, properties = {}) {
+    function notice2(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports.notice = notice;
+    exports.notice = notice2;
     function info2(message) {
       process.stdout.write(message + os.EOL);
     }
@@ -44376,6 +44376,49 @@ Actual: failed to parse baseline JSON: ${message}`
 }
 
 // src/license.ts
+async function checkTrial(options) {
+  const {
+    instanceName,
+    serverUrl,
+    fetchFn = fetch,
+    timeoutMs = 1e4
+  } = options;
+  const defaultUrl = "https://mcp-license-service.onrender.com";
+  const baseUrl = (serverUrl || process.env.MCP_LICENSE_SERVER_URL || defaultUrl).replace(/\/+$/, "");
+  const trialUrl = `${baseUrl}/v1/licenses/trial`;
+  try {
+    const res = await fetchFn(trialUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json"
+      },
+      body: `instance_name=${encodeURIComponent(instanceName)}`,
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+    if (res.status === 200) {
+      const raw = await res.json();
+      return {
+        valid: Boolean(raw.valid),
+        trial: raw.trial !== void 0 ? Boolean(raw.trial) : void 0,
+        daysRemaining: typeof raw.daysRemaining === "number" ? raw.daysRemaining : typeof raw.days_remaining === "number" ? raw.days_remaining : void 0,
+        expiresAt: raw.expiresAt || raw.expires_at,
+        checkoutUrl: raw.checkoutUrl || raw.checkout_url,
+        error: raw.error
+      };
+    }
+    return {
+      valid: false,
+      error: `Trial evaluation failed (server returned HTTP ${res.status})`
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      valid: false,
+      error: `Failed to contact license server for trial evaluation: ${message}`
+    };
+  }
+}
 async function verifyLicense(options) {
   const {
     licenseKey,
@@ -44540,25 +44583,46 @@ async function run(customFetch) {
     }
     if (isPrivate) {
       const licenseKey = core.getInput("license-key");
-      if (!licenseKey) {
-        core.setFailed(
-          "Private repos require a license: https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00"
-        );
-        return;
-      }
       const repoPayload = github.context.payload?.repository;
       const instanceName = repoPayload?.full_name || `${github.context.repo.owner}/${github.context.repo.repo}`;
       const serverUrl = core.getInput("license-server-url") || process.env.MCP_LICENSE_SERVER_URL;
-      const licenseResult = await verifyLicense({
-        licenseKey,
-        instanceName,
-        serverUrl: serverUrl || void 0,
-        fetchFn: customFetch,
-        timeoutMs: 1e4
-      });
-      if (!licenseResult.valid) {
-        core.setFailed(licenseResult.error || "License verification failed");
-        return;
+      if (!licenseKey) {
+        const trialResult = await checkTrial({
+          instanceName,
+          serverUrl: serverUrl || void 0,
+          fetchFn: customFetch,
+          timeoutMs: 1e4
+        });
+        if (trialResult.valid && trialResult.trial) {
+          const days = trialResult.daysRemaining ?? 14;
+          const checkoutUrl = trialResult.checkoutUrl || "https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00";
+          if (typeof core.notice === "function") {
+            core.notice(
+              `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Subscribe at ${checkoutUrl} to maintain uninterrupted CI.`
+            );
+          } else {
+            core.info(
+              `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Subscribe at ${checkoutUrl}`
+            );
+          }
+        } else {
+          core.setFailed(
+            trialResult.error || "Private repos require an active license or trial: https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00"
+          );
+          return;
+        }
+      } else {
+        const licenseResult = await verifyLicense({
+          licenseKey,
+          instanceName,
+          serverUrl: serverUrl || void 0,
+          fetchFn: customFetch,
+          timeoutMs: 1e4
+        });
+        if (!licenseResult.valid) {
+          core.setFailed(licenseResult.error || "License verification failed");
+          return;
+        }
       }
     }
     const command = core.getInput("command") || void 0;

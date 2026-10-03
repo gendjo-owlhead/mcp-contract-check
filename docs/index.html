@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MCP Contract Check — CI/CD Testing & Schema Fuzzer for Model Context Protocol</title>
+  <meta name="description" content="Automate MCP server contract validation, schema fuzzing, and breaking change detection in CI/CD. Free forever for open source. 14-day trial for private repositories.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="navbar">
+    <div class="container nav-container">
+      <a href="#" class="brand-link">
+        <div class="brand-shield">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          </svg>
+        </div>
+        <span>mcp-contract-check</span>
+      </a>
+
+      <div class="nav-links">
+        <a href="#playground">Playground</a>
+        <a href="#diff-inspector">Breaking Changes</a>
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#badge-builder">Badge</a>
+      </div>
+
+      <div class="nav-cta">
+        <a href="https://github.com/gendjo-owlhead/mcp-contract-check" class="btn btn-outline btn-sm" target="_blank" rel="noopener">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          GitHub
+        </a>
+        <a href="#quickstart" class="btn btn-primary btn-sm">Get Started</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <header class="hero">
+    <div class="container">
+      <div class="badge-pill">
+        <span class="pulse-dot"></span>
+        v1.1.0 Released — Schema Fuzzer & 14-Day Free Evaluation Trial
+      </div>
+
+      <h1>
+        Guarantee Server Reliability with<br>
+        <span class="gradient-text">MCP Contract Testing</span>
+      </h1>
+
+      <p class="hero-subtitle">
+        Automatically test Model Context Protocol servers in GitHub Actions. Fuzz tool schemas, detect breaking changes before merge, and prove your server contract to LLM agent builders.
+      </p>
+
+      <div class="hero-actions">
+        <a href="#quickstart" class="btn btn-primary">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"/>
+          </svg>
+          Add to GitHub Actions
+        </a>
+        <a href="#playground" class="btn btn-outline">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          Test Fuzzer in Browser
+        </a>
+      </div>
+
+      <div class="cli-banner">
+        <span>$</span>
+        <code id="cliSnippet">npx @local/mcp-contract-check --command "node server.js" --fuzz</code>
+        <button class="copy-mini-btn" data-copy-target="cliSnippet" title="Copy CLI Command">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+          </svg>
+        </button>
+      </div>
+
+      <div class="hero-badges-row" style="margin-top: 32px;">
+        <img src="https://img.shields.io/badge/MCP%20Contract-Validated-0080ff?logo=shield" alt="MCP Validated">
+        <img src="https://img.shields.io/badge/License-MIT-green" alt="MIT License">
+        <img src="https://img.shields.io/badge/CI-GitHub%20Actions-blue?logo=githubactions" alt="GitHub Actions">
+        <img src="https://img.shields.io/badge/Transport-stdio%20%2B%20SSE-8a2be2" alt="Transports">
+      </div>
+    </div>
+  </header>
+
+  <!-- Interactive Simulator Section -->
+  <section class="interactive-section" id="playground">
+    <div class="container">
+      <div class="section-header">
+        <h2>Interactive Schema Fuzzer Simulator</h2>
+        <p>Synthesize valid edge-case payloads from any JSON Schema in real-time without writing test fixtures.</p>
+      </div>
+
+      <div class="interactive-panel">
+        <div class="panel-toolbar">
+          <div class="panel-title-group">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+              <polyline points="14 2 14 8 20 8"/>
+            </svg>
+            <strong>MCP Tool Schema Workbench</strong>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <label for="schemaPresetSelect" style="font-size: 0.85rem; color: var(--text-muted);">Preset:</label>
+            <select id="schemaPresetSelect" class="schema-select">
+              <option value="sqlite_query">sqlite_query (Database Tool)</option>
+              <option value="fetch_webpage">fetch_webpage (HTTP Scraper)</option>
+              <option value="calculate_math">calculate_math (Computation)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="fuzzer-workbench">
+          <div class="workbench-pane">
+            <div class="pane-label">
+              <span>Tool Contract Definition (JSON)</span>
+            </div>
+            <textarea id="schemaEditor" class="code-editor" spellcheck="false"></textarea>
+            <div class="workbench-actions">
+              <button id="runFuzzBtn" class="btn btn-primary">
+                <span>▶ Run Schema Fuzzer</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="workbench-pane">
+            <div class="pane-label">
+              <span>Simulated Validation Output</span>
+            </div>
+            <div id="fuzzOutput" class="output-terminal">
+              <span class="log-info">[ready] Select a preset schema and click 'Run Schema Fuzzer' to simulate execution.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Breaking Change Inspector Section -->
+  <section class="interactive-section" id="diff-inspector" style="padding-top: 0;">
+    <div class="container">
+      <div class="section-header">
+        <h2>Breaking Change PR Detection</h2>
+        <p>Prevent agent outages by catching unintended schema regressions before merging pull requests.</p>
+      </div>
+
+      <div class="interactive-panel" style="padding: 28px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h3 style="font-size: 1.15rem; font-weight: 600;">Contract Diff: Baseline (v1.0.0) vs PR Branch</h3>
+          <span style="background: rgba(244, 63, 94, 0.15); color: var(--accent-rose); border: 1px solid rgba(244, 63, 94, 0.3); padding: 4px 10px; border-radius: 4px; font-weight: 700; font-size: 0.8rem;">
+            🛑 2 Breaking Changes Detected
+          </span>
+        </div>
+
+        <div class="diff-visualizer">
+          <div class="diff-box old-ver">
+            <div style="color: var(--text-faint); margin-bottom: 8px; font-weight: 700;">BASELINE (v1.0.0)</div>
+            <pre style="color: #94a3b8; font-family: var(--font-mono); font-size: 0.85rem;">
+{
+  "tool": "execute_query",
+  "properties": {
+    "query": { "type": ["string", "number"] }
+  },
+  "required": []
+}
+
+{
+  "tool": "legacy_cleanup",
+  "description": "Clean temporary tables"
+}</pre>
+          </div>
+
+          <div class="diff-box new-ver">
+            <div style="color: var(--accent-rose); margin-bottom: 8px; font-weight: 700;">PR CANDIDATE (In Review)</div>
+            <pre style="color: #f8fafc; font-family: var(--font-mono); font-size: 0.85rem;">
+{
+  "tool": "execute_query",
+  "properties": {
+    "query": { "type": "string" }, // Narrowed type
+    "api_version": { "type": "string" }
+  },
+  "required": ["api_version"] // 🛑 Newly required parameter!
+}
+
+// 🛑 Tool 'legacy_cleanup' was removed!</pre>
+          </div>
+        </div>
+
+        <div style="margin-top: 18px; padding: 14px; background: rgba(15, 23, 42, 0.9); border-radius: 8px; border-left: 4px solid var(--accent-rose); font-size: 0.88rem; color: #cbd5e1;">
+          <strong>CI Blocker Active:</strong> GitHub Actions flags these regressions in step summaries and fails the job, keeping client LLMs from breaking.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature Grid -->
+  <section class="features-section" id="features">
+    <div class="container">
+      <div class="section-header">
+        <h2>Designed for Autonomous Agent Ecosystems</h2>
+        <p>Everything you need to deliver production-grade MCP servers with total confidence.</p>
+      </div>
+
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-icon">⚡</div>
+          <h3>Zero-Fixture Schema Fuzzing</h3>
+          <p>Synthesize valid, boundary, and negative payloads directly from tool input schemas automatically. Zero manual test fixture authoring required.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">🛡️</div>
+          <h3>Breaking Change Guard</h3>
+          <p>Save baseline contract snapshots and catch breaking changes in tool names, required properties, or narrowed types during CI pull requests.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">🌐</div>
+          <h3>Dual Transport Coverage</h3>
+          <p>Test stdio servers locally or remote SSE endpoints over HTTP with full custom header and authorization token injection.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">📊</div>
+          <h3>GitHub Step Summaries</h3>
+          <p>Beautiful markdown tables rendered straight into your GitHub Actions workflow runs, giving developers immediate diagnostic visibility.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">🎁</div>
+          <h3>14-Day Free Evaluation</h3>
+          <p>Private repositories onboard instantly in CI without an upfront credit card. Automatic 14-day evaluation trial with countdown notices.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">✨</div>
+          <h3>Embeddable Shields Badge</h3>
+          <p>Show off your validated contract to users and agent builders on GitHub with real-time status badges in your server README.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing Matrix -->
+  <section class="pricing-section" id="pricing">
+    <div class="container">
+      <div class="section-header">
+        <h2>Simple, Transparent Pricing</h2>
+        <p>Free for open source. Frictionless evaluation for commercial teams.</p>
+      </div>
+
+      <div class="pricing-grid">
+        <!-- Open Source -->
+        <div class="pricing-card">
+          <div class="plan-name">Open Source</div>
+          <div class="plan-desc">For public community MCP servers and open-source tool libraries.</div>
+          <div class="plan-price">
+            <span class="amount">€0</span>
+            <span class="period">forever</span>
+          </div>
+          <ul class="plan-features">
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Unlimited CI test runs on public repos
+            </li>
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Full schema fuzzing & fixture engine
+            </li>
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Breaking change detection in PRs
+            </li>
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Embeddable README badge
+            </li>
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Community support via GitHub
+            </li>
+          </ul>
+          <a href="#quickstart" class="btn btn-outline">Start Free</a>
+        </div>
+
+        <!-- Private Repo -->
+        <div class="pricing-card featured">
+          <div class="card-ribbon">14-Day Free Trial</div>
+          <div class="plan-name">Private Repository</div>
+          <div class="plan-desc">For proprietary agent tooling, internal enterprise servers, and private codebases.</div>
+          <div class="plan-price">
+            <span class="amount">€29</span>
+            <span class="period">/ month</span>
+          </div>
+          <ul class="plan-features">
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <strong>14-Day Automatic Free Trial</strong> (no card needed)
+            </li>
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Unlimited CI test runs on private repo
+            </li>
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Automated PR contract compatibility guard
+            </li>
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Remote SSE transport testing & headers
+            </li>
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Seamless Stripe billing & instant license key
+            </li>
+          </ul>
+          <a href="https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00" class="btn btn-primary" target="_blank" rel="noopener">
+            Subscribe Now (€29/mo)
+          </a>
+        </div>
+
+        <!-- Organization -->
+        <div class="pricing-card">
+          <div class="plan-name">Organization</div>
+          <div class="plan-desc">For enterprise teams maintaining multiple internal or customer-facing MCP servers.</div>
+          <div class="plan-price">
+            <span class="amount">€99</span>
+            <span class="period">/ month</span>
+          </div>
+          <ul class="plan-features">
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Unlimited private repositories in GitHub Org
+            </li>
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Single unified organization license key
+            </li>
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Custom contract reporting & compliance
+            </li>
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Priority email & Slack support
+            </li>
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              Invoice billing available
+            </li>
+          </ul>
+          <a href="https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00" class="btn btn-outline" target="_blank" rel="noopener">
+            Get Organization License
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Embeddable Badge Generator Section -->
+  <section class="badge-generator-section" id="badge-builder">
+    <div class="container">
+      <div class="section-header">
+        <h2>Live Badge Builder</h2>
+        <p>Embed real-time MCP validation proof into your repository README.</p>
+      </div>
+
+      <div class="badge-card">
+        <div class="generator-grid">
+          <div>
+            <div class="input-group">
+              <label for="badgeRepoInput">GitHub Repository (owner/repo):</label>
+              <input type="text" id="badgeRepoInput" class="text-input" value="gendjo-owlhead/mcp-contract-check">
+            </div>
+
+            <div class="input-group">
+              <label for="badgeStyleSelect">Badge Style:</label>
+              <select id="badgeStyleSelect" class="schema-select" style="width: 100%; padding: 10px;">
+                <option value="flat">Flat (Default)</option>
+                <option value="flat-square">Flat Square</option>
+                <option value="for-the-badge">For the Badge</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label style="font-size: 0.88rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 8px;">Badge Live Preview:</label>
+            <div class="badge-preview-box">
+              <img id="badgePreviewImg" src="https://img.shields.io/badge/MCP%20Contract-Validated-0080ff?logo=shield" alt="Badge Preview">
+            </div>
+
+            <label style="font-size: 0.88rem; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 8px;">Markdown Snippet:</label>
+            <div style="position: relative;">
+              <input type="text" id="badgeCodeOutput" class="text-input" readonly style="font-family: var(--font-mono); font-size: 0.82rem; padding-right: 80px;" value="[![MCP Contract Validated](https://img.shields.io/badge/MCP%20Contract-Validated-0080ff?logo=shield)](https://github.com/gendjo-owlhead/mcp-contract-check)">
+              <button class="btn btn-sm btn-primary" data-copy-target="badgeCodeOutput" style="position: absolute; right: 6px; top: 6px; height: 32px;">Copy</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quickstart Section -->
+  <section class="interactive-section" id="quickstart" style="padding-bottom: 90px;">
+    <div class="container">
+      <div class="section-header">
+        <h2>1-Minute GitHub Actions Setup</h2>
+        <p>Drop this job step into your <code>.github/workflows/ci.yml</code> workflow.</p>
+      </div>
+
+      <div class="interactive-panel" style="padding: 24px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+          <span style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-muted);">.github/workflows/contract-test.yml</span>
+          <button class="btn btn-sm btn-outline" data-copy-target="quickstartYaml">Copy Workflow</button>
+        </div>
+        <textarea id="quickstartYaml" class="code-editor" style="min-height: 240px; font-size: 0.85rem;" readonly>name: MCP Contract Check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  contract-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+
+      - name: Validate MCP Server Contract & Fuzz Tool Schemas
+        uses: gendjo-owlhead/mcp-contract-check@v1
+        with:
+          command: "node server.js"
+          fuzz: "true"
+          baseline: "contracts/mcp-baseline.json"
+          save-contract: "contracts/mcp-current.json"
+          license-key: ${{ secrets.MCP_LICENSE_KEY }} # Optional: only for private repos</textarea>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="site-footer">
+    <div class="container">
+      <p>MCP Contract Check is open source software released under the <a href="https://github.com/gendjo-owlhead/mcp-contract-check/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>.</p>
+      <p style="margin-top: 8px;">Maintained by <a href="https://github.com/gendjo-owlhead" target="_blank" rel="noopener">gendjo-owlhead</a>. Powered by Model Context Protocol.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
