@@ -26,3 +26,5 @@ jobs:
 
 Public repositories run completely free with no license key required.
 Paid license for private repos (€29/month + VAT): https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00
+
+For private repositories, provide your Stripe billing email, Subscription ID (`sub_...`), or Customer ID (`cus_...`) as `license-key`.

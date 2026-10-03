@@ -78,10 +78,10 @@ Tools without explicit fixtures are automatically invoked with `{}` to verify ba
 ## Licensing & Pricing
 
 - **Public Repositories**: **100% Free**. No license key or registration required.
-- **Private Repositories**: Requires an active license key.
+- **Private Repositories**: Requires an active license.
   - **Pricing**: €29/month + VAT
-  - **Subscribe & Get License Key**: [Buy License via Stripe](https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00)
-  - Add your license key to your repository secrets as `MCP_LICENSE_KEY`.
+  - **Subscribe**: [Buy License via Stripe](https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00)
+  - Add your Stripe billing email, Subscription ID (`sub_...`), or Customer ID (`cus_...`) to your repository secrets as `MCP_LICENSE_KEY`.
 
 ---
 
