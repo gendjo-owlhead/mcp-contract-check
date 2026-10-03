@@ -9,8 +9,9 @@ Actionable channels and ready-to-use templates to acquire users for `mcp-contrac
 Submit pull requests to add `mcp-contract-check` under "Testing & Tooling" or "CI/CD":
 
 1. **[punkpeye/awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-servers)**
-   - Section: *Developer Tools* or *Testing*
-   - Blurb: `[MCP Contract Check](https://github.com/gendjo-owlhead/mcp-contract-check) - Automated JSON Schema validation, fuzzer, and breaking change detection for MCP servers in CI/CD.`
+   - Section: *Frameworks*
+   - Status: **PR Submitted**: [#15639](https://github.com/punkpeye/awesome-mcp-servers/pull/15639) (Fast-track agent review `🤖🤖🤖`)
+   - Entry: `[gendjo-owlhead/mcp-contract-check](https://github.com/gendjo-owlhead/mcp-contract-check) 📇 🏠 🍎 🪟 🐧 - Automated contract testing, schema fuzzing, and breaking change detection for MCP servers in CI/CD.`
 2. **[wong2/awesome-mcp-servers](https://github.com/wong2/awesome-mcp-servers)**
 3. **[modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers)**
 4. **[glama-ai/mcp-registry](https://glama.ai/mcp)**
