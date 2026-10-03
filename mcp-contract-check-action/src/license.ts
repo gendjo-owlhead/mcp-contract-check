@@ -30,7 +30,7 @@ export async function verifyLicense(
     };
   }
 
-  const defaultUrl = "https://api.lemonsqueezy.com";
+  const defaultUrl = "https://mcp-license-service.onrender.com";
   const baseUrl = (serverUrl || process.env.MCP_LICENSE_SERVER_URL || defaultUrl).replace(/\/+$/, "");
   const validateUrl = `${baseUrl}/v1/licenses/validate`;
   const activateUrl = `${baseUrl}/v1/licenses/activate`;

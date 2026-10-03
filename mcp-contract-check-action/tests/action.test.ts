@@ -96,7 +96,7 @@ describe("mcp-contract-check-action", () => {
 
     expect(mockFetch).toHaveBeenCalledTimes(1);
     expect(mockFetch).toHaveBeenCalledWith(
-      "https://api.lemonsqueezy.com/v1/licenses/validate",
+      "https://mcp-license-service.onrender.com/v1/licenses/validate",
       expect.objectContaining({
         method: "POST",
         body: "license_key=valid-key",
@@ -166,12 +166,12 @@ describe("mcp-contract-check-action", () => {
     expect(mockFetch).toHaveBeenCalledTimes(2);
     expect(mockFetch).toHaveBeenNthCalledWith(
       1,
-      "https://api.lemonsqueezy.com/v1/licenses/validate",
+      "https://mcp-license-service.onrender.com/v1/licenses/validate",
       expect.anything()
     );
     expect(mockFetch).toHaveBeenNthCalledWith(
       2,
-      "https://api.lemonsqueezy.com/v1/licenses/activate",
+      "https://mcp-license-service.onrender.com/v1/licenses/activate",
       expect.objectContaining({
         method: "POST",
         body: `license_key=key-needs-activation&instance_name=${encodeURIComponent("private/repo")}`,

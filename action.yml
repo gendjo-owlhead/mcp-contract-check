@@ -15,6 +15,7 @@ inputs:
   license-server-url:
     description: License verification server URL
     required: false
+    default: "https://mcp-license-service.onrender.com"
 branding:
   icon: shield
   color: blue
