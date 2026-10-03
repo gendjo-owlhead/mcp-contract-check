@@ -15,7 +15,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - uses: gendzaj/mcp-contract-check-action@v1
+      - uses: gendjo-owlhead/mcp-contract-check@v1
         with:
           command: "node server.js"
           cases: "cases"
