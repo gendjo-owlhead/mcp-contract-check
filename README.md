@@ -112,6 +112,29 @@ jobs:
 
 ---
 
+## Action Outputs
+
+| Output | Description |
+|---|---|
+| `total` | Total number of contract test cases checked. |
+| `passed` | Number of passed contract test cases. |
+| `failed` | Number of failed contract test cases. |
+| `compatible` | Whether contract changes are backward-compatible with the baseline (`true`/`false`). |
+
+---
+
+## Embeddable Badge
+
+Add the official validation badge to your MCP server repository:
+
+[![MCP Contract Validated](https://img.shields.io/badge/MCP%20Contract-Validated-0080ff?logo=shield)](https://github.com/gendjo-owlhead/mcp-contract-check)
+
+```markdown
+[![MCP Contract Validated](https://img.shields.io/badge/MCP%20Contract-Validated-0080ff?logo=shield)](https://github.com/gendjo-owlhead/mcp-contract-check)
+```
+
+---
+
 ## Fixtures Format
 
 Create a directory (e.g. `cases/`) containing JSON files with fixtures for your tools (e.g. `cases/calculator.json`):

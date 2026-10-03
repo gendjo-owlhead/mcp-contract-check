@@ -9,15 +9,25 @@ const demoCasesDir = path.resolve(__dirname, "../../mcp-check-demo/cases");
 const inputs: Record<string, string> = {};
 let failedMessage: string | null = null;
 let infoMessages: string[] = [];
+const outputs: Record<string, string> = {};
 
 vi.mock("@actions/core", () => ({
   getInput: vi.fn((name: string) => inputs[name] || ""),
+  setOutput: vi.fn((name: string, value: string) => {
+    outputs[name] = value;
+  }),
   setFailed: vi.fn((msg: string) => {
     failedMessage = msg;
   }),
   info: vi.fn((msg: string) => {
     infoMessages.push(msg);
   }),
+  summary: {
+    addHeading: vi.fn().mockReturnThis(),
+    addTable: vi.fn().mockReturnThis(),
+    addRaw: vi.fn().mockReturnThis(),
+    write: vi.fn().mockResolvedValue(undefined),
+  },
 }));
 
 const mockPayload: {
@@ -47,6 +57,9 @@ describe("mcp-contract-check-action", () => {
   beforeEach(() => {
     for (const key of Object.keys(inputs)) {
       delete inputs[key];
+    }
+    for (const key of Object.keys(outputs)) {
+      delete outputs[key];
     }
     failedMessage = null;
     infoMessages = [];
@@ -215,5 +228,8 @@ describe("mcp-contract-check-action", () => {
 
     expect(failedMessage).toBeNull();
     expect(infoMessages).toContain("ok");
+    expect(outputs["total"]).toBe("1");
+    expect(outputs["passed"]).toBe("1");
+    expect(outputs["compatible"]).toBe("true");
   });
 });

@@ -32,6 +32,15 @@ inputs:
     description: "License verification server URL"
     required: false
     default: "https://mcp-license-service.onrender.com"
+outputs:
+  total:
+    description: "Total number of test cases checked"
+  passed:
+    description: "Number of passed contract test cases"
+  failed:
+    description: "Number of failed contract test cases"
+  compatible:
+    description: "Whether contract changes are backward-compatible with baseline"
 branding:
   icon: shield
   color: blue

@@ -151,7 +151,7 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
   }
 
   const client = new Client(
-    { name: "mcp-contract-check", version: "1.0.0" },
+    { name: "mcp-contract-check", version: "1.1.0" },
     { capabilities: {} }
   );
 

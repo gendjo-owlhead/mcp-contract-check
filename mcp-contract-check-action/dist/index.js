@@ -19781,7 +19781,7 @@ var require_core = __commonJS({
 Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
     }
     exports.getBooleanInput = getBooleanInput;
-    function setOutput(name, value) {
+    function setOutput2(name, value) {
       const filePath = process.env["GITHUB_OUTPUT"] || "";
       if (filePath) {
         return (0, file_command_1.issueFileCommand)("OUTPUT", (0, file_command_1.prepareKeyValueMessage)(name, value));
@@ -19789,7 +19789,7 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       process.stdout.write(os.EOL);
       (0, command_1.issueCommand)("set-output", { name }, (0, utils_1.toCommandValue)(value));
     }
-    exports.setOutput = setOutput;
+    exports.setOutput = setOutput2;
     function setCommandEcho(enabled) {
       (0, command_1.issue)("echo", enabled ? "on" : "off");
     }
@@ -43805,19 +43805,36 @@ var SchemaFuzzer = class {
     return val;
   }
   static generateNumber(schema) {
-    let min = 1;
+    let min;
     if (typeof schema.minimum === "number") {
       min = schema.minimum;
     } else if (typeof schema.exclusiveMinimum === "number") {
-      min = schema.exclusiveMinimum + 1;
+      min = schema.exclusiveMinimum + (schema.type === "integer" ? 1 : 1e-3);
     }
-    let val = Math.max(min, 1);
-    if (typeof schema.maximum === "number" && val > schema.maximum) {
-      val = schema.maximum;
-    } else if (typeof schema.exclusiveMaximum === "number" && val >= schema.exclusiveMaximum) {
-      val = schema.exclusiveMaximum - 1;
+    let max;
+    if (typeof schema.maximum === "number") {
+      max = schema.maximum;
+    } else if (typeof schema.exclusiveMaximum === "number") {
+      max = schema.exclusiveMaximum - (schema.type === "integer" ? 1 : 1e-3);
     }
-    return val;
+    let val;
+    if (min !== void 0 && max !== void 0) {
+      val = min <= 0 && max >= 0 ? 0 : min;
+    } else if (min !== void 0) {
+      val = Math.max(min, 1);
+    } else if (max !== void 0) {
+      val = Math.min(max, 1);
+    } else {
+      val = 1;
+    }
+    if (typeof schema.multipleOf === "number" && schema.multipleOf > 0) {
+      const step = schema.multipleOf;
+      val = Math.ceil(val / step) * step;
+      if (max !== void 0 && val > max) {
+        val = Math.floor(max / step) * step;
+      }
+    }
+    return schema.type === "integer" ? Math.round(val) : val;
   }
   static generateArray(schema, propName) {
     const itemsSchema = schema.items;
@@ -44095,7 +44112,7 @@ Expected: server command or URL
 Actual: Missing both command and url options`
     };
   }
-  const client = new Client({ name: "mcp-contract-check", version: "1.0.0" }, { capabilities: {} });
+  const client = new Client({ name: "mcp-contract-check", version: "1.1.0" }, { capabilities: {} });
   try {
     try {
       await client.connect(transport);
@@ -44565,6 +44582,80 @@ async function run(customFetch) {
       baseline,
       saveContract
     });
+    if (typeof core.setOutput === "function") {
+      core.setOutput("total", String(checkSummary.totalCases));
+      core.setOutput("passed", String(checkSummary.passedCases));
+      core.setOutput("failed", String(checkSummary.failedCases));
+      core.setOutput(
+        "compatible",
+        checkSummary.diff ? String(checkSummary.diff.compatible) : "true"
+      );
+    }
+    try {
+      if (core.summary && typeof core.summary.addHeading === "function") {
+        const title = checkSummary.success ? "\u{1F6E1}\uFE0F MCP Contract Check: Passed" : "\u{1F6E1}\uFE0F MCP Contract Check: Failed";
+        core.summary.addHeading(title, 2);
+        const summaryRows = [
+          [
+            { data: "Total Cases", header: true },
+            { data: "Passed", header: true },
+            { data: "Failed", header: true },
+            { data: "Status", header: true }
+          ],
+          [
+            String(checkSummary.totalCases),
+            String(checkSummary.passedCases),
+            String(checkSummary.failedCases),
+            checkSummary.success ? "\u2705 Pass" : "\u274C Fail"
+          ]
+        ];
+        core.summary.addTable(summaryRows);
+        if (checkSummary.results.length > 0) {
+          core.summary.addHeading("Tool Cases", 3);
+          const caseRows = [
+            [
+              { data: "Tool", header: true },
+              { data: "Case", header: true },
+              { data: "Expected", header: true },
+              { data: "Status", header: true }
+            ]
+          ];
+          for (const res of checkSummary.results) {
+            caseRows.push([
+              res.tool,
+              res.caseFile,
+              res.expected,
+              res.passed ? "\u2705 Pass" : "\u274C Fail"
+            ]);
+          }
+          core.summary.addTable(caseRows);
+        }
+        if (checkSummary.diff) {
+          core.summary.addHeading("Baseline Contract Compatibility", 3);
+          if (checkSummary.diff.issues.length === 0) {
+            core.summary.addRaw("\u2705 All tools match baseline contract.");
+          } else {
+            const diffRows = [
+              [
+                { data: "Tool", header: true },
+                { data: "Severity", header: true },
+                { data: "Message", header: true }
+              ]
+            ];
+            for (const issue2 of checkSummary.diff.issues) {
+              diffRows.push([
+                issue2.tool,
+                issue2.severity === "breaking" ? "\u{1F6D1} Breaking" : "\u2139\uFE0F Info",
+                issue2.message
+              ]);
+            }
+            core.summary.addTable(diffRows);
+          }
+        }
+        await core.summary.write();
+      }
+    } catch {
+    }
     if (checkSummary.success) {
       core.info("ok");
     } else {

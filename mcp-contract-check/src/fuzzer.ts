@@ -130,22 +130,40 @@ export class SchemaFuzzer {
   }
 
   private static generateNumber(schema: Record<string, unknown>): number {
-    let min = 1;
+    let min: number | undefined;
     if (typeof schema.minimum === "number") {
       min = schema.minimum;
     } else if (typeof schema.exclusiveMinimum === "number") {
-      min = schema.exclusiveMinimum + 1;
+      min = schema.exclusiveMinimum + (schema.type === "integer" ? 1 : 0.001);
     }
 
-    let val = Math.max(min, 1);
-
-    if (typeof schema.maximum === "number" && val > schema.maximum) {
-      val = schema.maximum;
-    } else if (typeof schema.exclusiveMaximum === "number" && val >= schema.exclusiveMaximum) {
-      val = schema.exclusiveMaximum - 1;
+    let max: number | undefined;
+    if (typeof schema.maximum === "number") {
+      max = schema.maximum;
+    } else if (typeof schema.exclusiveMaximum === "number") {
+      max = schema.exclusiveMaximum - (schema.type === "integer" ? 1 : 0.001);
     }
 
-    return val;
+    let val: number;
+    if (min !== undefined && max !== undefined) {
+      val = min <= 0 && max >= 0 ? 0 : min;
+    } else if (min !== undefined) {
+      val = Math.max(min, 1);
+    } else if (max !== undefined) {
+      val = Math.min(max, 1);
+    } else {
+      val = 1;
+    }
+
+    if (typeof schema.multipleOf === "number" && schema.multipleOf > 0) {
+      const step = schema.multipleOf;
+      val = Math.ceil(val / step) * step;
+      if (max !== undefined && val > max) {
+        val = Math.floor(max / step) * step;
+      }
+    }
+
+    return schema.type === "integer" ? Math.round(val) : val;
   }
 
   private static generateArray(

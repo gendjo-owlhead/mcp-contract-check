@@ -78,4 +78,13 @@ describe("SchemaFuzzer", () => {
     const validation = validateJsonSchema(complexSchema, payload);
     expect(validation.valid).toBe(true);
   });
+
+  it("handles negative ranges and multipleOf constraints", () => {
+    const negSchema = { type: "number", minimum: -20, maximum: -5, multipleOf: 5 };
+    const val = SchemaFuzzer.generateValidPayload(negSchema);
+    expect(typeof val).toBe("number");
+    expect(val).toBeGreaterThanOrEqual(-20);
+    expect(val).toBeLessThanOrEqual(-5);
+    expect(validateJsonSchema(negSchema, val).valid).toBe(true);
+  });
 });

@@ -135,7 +135,7 @@ export async function runContractCheck(options) {
             report: `Tool: (server)\nCase: (none)\nExpected: server command or URL\nActual: Missing both command and url options`,
         };
     }
-    const client = new Client({ name: "mcp-contract-check", version: "1.0.0" }, { capabilities: {} });
+    const client = new Client({ name: "mcp-contract-check", version: "1.1.0" }, { capabilities: {} });
     try {
         try {
             await client.connect(transport);

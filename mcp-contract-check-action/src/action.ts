@@ -121,6 +121,89 @@ export async function run(
       saveContract,
     });
 
+    if (typeof core.setOutput === "function") {
+      core.setOutput("total", String(checkSummary.totalCases));
+      core.setOutput("passed", String(checkSummary.passedCases));
+      core.setOutput("failed", String(checkSummary.failedCases));
+      core.setOutput(
+        "compatible",
+        checkSummary.diff ? String(checkSummary.diff.compatible) : "true"
+      );
+    }
+
+    try {
+      if (core.summary && typeof core.summary.addHeading === "function") {
+        const title = checkSummary.success
+          ? "🛡️ MCP Contract Check: Passed"
+          : "🛡️ MCP Contract Check: Failed";
+        core.summary.addHeading(title, 2);
+
+        const summaryRows: any[] = [
+          [
+            { data: "Total Cases", header: true },
+            { data: "Passed", header: true },
+            { data: "Failed", header: true },
+            { data: "Status", header: true },
+          ],
+          [
+            String(checkSummary.totalCases),
+            String(checkSummary.passedCases),
+            String(checkSummary.failedCases),
+            checkSummary.success ? "✅ Pass" : "❌ Fail",
+          ],
+        ];
+        core.summary.addTable(summaryRows);
+
+        if (checkSummary.results.length > 0) {
+          core.summary.addHeading("Tool Cases", 3);
+          const caseRows: any[] = [
+            [
+              { data: "Tool", header: true },
+              { data: "Case", header: true },
+              { data: "Expected", header: true },
+              { data: "Status", header: true },
+            ],
+          ];
+          for (const res of checkSummary.results) {
+            caseRows.push([
+              res.tool,
+              res.caseFile,
+              res.expected,
+              res.passed ? "✅ Pass" : "❌ Fail",
+            ]);
+          }
+          core.summary.addTable(caseRows);
+        }
+
+        if (checkSummary.diff) {
+          core.summary.addHeading("Baseline Contract Compatibility", 3);
+          if (checkSummary.diff.issues.length === 0) {
+            core.summary.addRaw("✅ All tools match baseline contract.");
+          } else {
+            const diffRows: any[] = [
+              [
+                { data: "Tool", header: true },
+                { data: "Severity", header: true },
+                { data: "Message", header: true },
+              ],
+            ];
+            for (const issue of checkSummary.diff.issues) {
+              diffRows.push([
+                issue.tool,
+                issue.severity === "breaking" ? "🛑 Breaking" : "ℹ️ Info",
+                issue.message,
+              ]);
+            }
+            core.summary.addTable(diffRows);
+          }
+        }
+
+        await core.summary.write();
+      }
+    } catch {
+      // Step summary failure should not abort the action
+    }
+
     if (checkSummary.success) {
       core.info("ok");
     } else {
