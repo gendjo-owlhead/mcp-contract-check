@@ -13,7 +13,7 @@ export async function run(
       const licenseKey = core.getInput("license-key");
       if (!licenseKey) {
         core.setFailed(
-          "Private repos require a license: https://buy.stripe.com/test_00w5kEdrja601U7c3AgrS00"
+          "Private repos require a license: https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00"
         );
         return;
       }

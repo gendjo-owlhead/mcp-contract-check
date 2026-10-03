@@ -25,4 +25,4 @@ jobs:
 ## Licensing
 
 Public repositories run completely free with no license key required.
-Paid license for private repos: https://buy.stripe.com/test_00w5kEdrja601U7c3AgrS00
+Paid license for private repos (€29/month + VAT): https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00
