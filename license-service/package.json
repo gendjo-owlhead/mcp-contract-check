@@ -1,6 +1,6 @@
 {
   "name": "license-service",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Stripe license verification microservice for MCP Contract Check",
   "type": "module",
   "main": "dist/index.js",

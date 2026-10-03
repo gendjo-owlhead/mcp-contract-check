@@ -1,6 +1,6 @@
 {
   "name": "mcp-contract-check-action",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "GitHub Action for MCP contract check",
   "type": "module",
   "main": "dist/index.js",
