@@ -4,7 +4,13 @@ function parseArgs(args) {
     const result = {};
     for (let i = 0; i < args.length; i++) {
         const arg = args[i];
-        if (arg === "--command" || arg === "-c") {
+        if (arg === "--help" || arg === "-h") {
+            result.help = true;
+        }
+        else if (arg === "--version" || arg === "-v") {
+            result.version = true;
+        }
+        else if (arg === "--command" || arg === "-c") {
             result.command = args[++i];
         }
         else if (arg.startsWith("--command=")) {
@@ -21,6 +27,24 @@ function parseArgs(args) {
 }
 async function main() {
     const parsed = parseArgs(process.argv.slice(2));
+    if (parsed.help) {
+        console.log(`mcp-check - Model Context Protocol tool contract testing
+
+Usage:
+  mcp-check --command "<stdio server command>" [--cases <dir>]
+
+Options:
+  -c, --command <cmd>    The stdio server command to start your MCP server (required)
+  -d, --cases <dir>      Directory containing test case fixtures (default: "cases")
+  -h, --help             Show this help message
+  -v, --version          Show version number
+`);
+        process.exit(0);
+    }
+    if (parsed.version) {
+        console.log("1.0.0");
+        process.exit(0);
+    }
     if (!parsed.command) {
         console.error('Error: missing required option --command "<stdio server command>"');
         console.error('Usage: mcp-check --command "<stdio server command>" [--cases <dir>]');

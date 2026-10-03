@@ -42,7 +42,7 @@ export function formatReport(results) {
         .join("\n\n");
 }
 export async function runContractCheck(options) {
-    const { command: commandStr, casesDir = "cases" } = options;
+    const { command: commandStr, casesDir = "cases", timeoutMs = 30000 } = options;
     const results = [];
     let parsed;
     try {
@@ -72,6 +72,14 @@ export async function runContractCheck(options) {
         args: parsed.args,
         stderr: "pipe",
     });
+    const stderrChunks = [];
+    transport.stderr?.on("data", (chunk) => {
+        stderrChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+    });
+    const getStderrLog = () => {
+        const raw = Buffer.concat(stderrChunks).toString("utf-8").trim();
+        return raw ? `\nServer stderr:\n${raw}` : "";
+    };
     const client = new Client({ name: "mcp-contract-check", version: "1.0.0" }, { capabilities: {} });
     try {
         try {
@@ -79,6 +87,7 @@ export async function runContractCheck(options) {
         }
         catch (err) {
             const message = err instanceof Error ? err.message : String(err);
+            const stderrLog = getStderrLog();
             return {
                 success: false,
                 totalCases: 0,
@@ -89,11 +98,11 @@ export async function runContractCheck(options) {
                         tool: "(server)",
                         caseFile: "(none)",
                         expected: "successful connection over stdio",
-                        actual: `failed to connect to server: ${message}`,
+                        actual: `failed to connect to server: ${message}${stderrLog}`,
                         passed: false,
                     },
                 ],
-                report: `Tool: (server)\nCase: (none)\nExpected: successful connection over stdio\nActual: failed to connect to server: ${message}`,
+                report: `Tool: (server)\nCase: (none)\nExpected: successful connection over stdio\nActual: failed to connect to server: ${message}${stderrLog}`,
             };
         }
         let tools = [];
@@ -153,8 +162,17 @@ export async function runContractCheck(options) {
                 const callResult = (await client.callTool({
                     name: testCase.tool,
                     arguments: testCase.arguments ?? {},
-                }));
+                }, undefined, { timeout: timeoutMs }));
                 if (callResult.isError === true) {
+                    const errorDetail = Array.isArray(callResult.content)
+                        ? callResult.content
+                            .map((c) => c && typeof c === "object" && typeof c.text === "string" ? c.text : "")
+                            .filter(Boolean)
+                            .join("\n")
+                        : "";
+                    const errorMsg = errorDetail
+                        ? `tool returned error: ${errorDetail}`
+                        : "tool returned error";
                     if (isExpectFail) {
                         results.push({
                             tool: testCase.tool,
@@ -169,7 +187,7 @@ export async function runContractCheck(options) {
                             tool: testCase.tool,
                             caseFile: testCase.caseFile,
                             expected: "success",
-                            actual: "tool returned error",
+                            actual: errorMsg,
                             passed: false,
                         });
                     }
@@ -220,11 +238,15 @@ export async function runContractCheck(options) {
                     });
                 }
                 else {
+                    const isSchemaError = Boolean(toolDef.outputSchema) &&
+                        (message.includes("output schema") ||
+                            message.includes("Structured content") ||
+                            message.includes("structured content"));
                     results.push({
                         tool: testCase.tool,
                         caseFile: testCase.caseFile,
-                        expected: "success",
-                        actual: message,
+                        expected: isSchemaError ? "output matching schema" : "success",
+                        actual: isSchemaError ? `output does not match schema: ${message}` : message,
                         passed: false,
                     });
                 }

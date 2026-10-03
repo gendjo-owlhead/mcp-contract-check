@@ -9,6 +9,7 @@ const addFormats =
 const ajv = new (Ajv as any)({
   allErrors: true,
   strict: false,
+  addUsedSchema: false,
 });
 (addFormats as any)(ajv);
 

@@ -52,7 +52,7 @@ export function formatReport(results: CaseResult[]): string {
 }
 
 export async function runContractCheck(options: CheckOptions): Promise<CheckSummary> {
-  const { command: commandStr, casesDir = "cases" } = options;
+  const { command: commandStr, casesDir = "cases", timeoutMs = 30000 } = options;
   const results: CaseResult[] = [];
 
   let parsed: { command: string; args: string[] };
@@ -84,6 +84,16 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
     stderr: "pipe",
   });
 
+  const stderrChunks: Buffer[] = [];
+  transport.stderr?.on("data", (chunk: Buffer | string) => {
+    stderrChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  });
+
+  const getStderrLog = (): string => {
+    const raw = Buffer.concat(stderrChunks).toString("utf-8").trim();
+    return raw ? `\nServer stderr:\n${raw}` : "";
+  };
+
   const client = new Client(
     { name: "mcp-contract-check", version: "1.0.0" },
     { capabilities: {} }
@@ -94,6 +104,7 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
       await client.connect(transport);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
+      const stderrLog = getStderrLog();
       return {
         success: false,
         totalCases: 0,
@@ -104,11 +115,11 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
             tool: "(server)",
             caseFile: "(none)",
             expected: "successful connection over stdio",
-            actual: `failed to connect to server: ${message}`,
+            actual: `failed to connect to server: ${message}${stderrLog}`,
             passed: false,
           },
         ],
-        report: `Tool: (server)\nCase: (none)\nExpected: successful connection over stdio\nActual: failed to connect to server: ${message}`,
+        report: `Tool: (server)\nCase: (none)\nExpected: successful connection over stdio\nActual: failed to connect to server: ${message}${stderrLog}`,
       };
     }
 
@@ -179,12 +190,28 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
       const isExpectFail = testCase.expected === "fail";
 
       try {
-        const callResult = (await client.callTool({
-          name: testCase.tool,
-          arguments: testCase.arguments ?? {},
-        })) as Record<string, unknown>;
+        const callResult = (await client.callTool(
+          {
+            name: testCase.tool,
+            arguments: testCase.arguments ?? {},
+          },
+          undefined,
+          { timeout: timeoutMs }
+        )) as Record<string, unknown>;
 
         if (callResult.isError === true) {
+          const errorDetail = Array.isArray(callResult.content)
+            ? callResult.content
+                .map((c: any) =>
+                  c && typeof c === "object" && typeof c.text === "string" ? c.text : ""
+                )
+                .filter(Boolean)
+                .join("\n")
+            : "";
+          const errorMsg = errorDetail
+            ? `tool returned error: ${errorDetail}`
+            : "tool returned error";
+
           if (isExpectFail) {
             results.push({
               tool: testCase.tool,
@@ -198,7 +225,7 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
               tool: testCase.tool,
               caseFile: testCase.caseFile,
               expected: "success",
-              actual: "tool returned error",
+              actual: errorMsg,
               passed: false,
             });
           }
@@ -252,11 +279,17 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
             passed: true,
           });
         } else {
+          const isSchemaError =
+            Boolean(toolDef.outputSchema) &&
+            (message.includes("output schema") ||
+              message.includes("Structured content") ||
+              message.includes("structured content"));
+
           results.push({
             tool: testCase.tool,
             caseFile: testCase.caseFile,
-            expected: "success",
-            actual: message,
+            expected: isSchemaError ? "output matching schema" : "success",
+            actual: isSchemaError ? `output does not match schema: ${message}` : message,
             passed: false,
           });
         }

@@ -63,6 +63,29 @@ describe("command-parser", () => {
   it("throws on empty command string", () => {
     expect(() => parseCommandLine("   ")).toThrow("Command string cannot be empty");
   });
+
+  it("handles flag arguments with quoted values without splitting", () => {
+    const res = parseCommandLine('node server.js --config="path with spaces/config.json"');
+    expect(res).toEqual({
+      command: "node",
+      args: ["server.js", '--config="path with spaces/config.json"'.replace(/^--config="(.+)"$/, "--config=$1")],
+    });
+    expect(res.args[1]).toBe("--config=path with spaces/config.json");
+  });
+
+  it("handles escaped quotes properly", () => {
+    const res = parseCommandLine('echo "hello \\"world\\""');
+    expect(res).toEqual({
+      command: "echo",
+      args: ['hello "world"'],
+    });
+  });
+
+  it("throws on unclosed quote", () => {
+    expect(() => parseCommandLine('node "unclosed string')).toThrow(
+      "Unclosed quote in command string"
+    );
+  });
 });
 
 describe("validator", () => {

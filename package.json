@@ -1,0 +1,13 @@
+{
+  "name": "mcp-contract-check-monorepo",
+  "private": true,
+  "workspaces": [
+    "mcp-contract-check",
+    "mcp-contract-check-action",
+    "mcp-check-demo"
+  ],
+  "scripts": {
+    "build": "npm --workspace=@local/mcp-contract-check run build && npm --workspace=mcp-contract-check-action run build",
+    "test": "npm --workspace=@local/mcp-contract-check test && npm --workspace=mcp-contract-check-action test"
+  }
+}

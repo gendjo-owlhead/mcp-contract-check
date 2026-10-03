@@ -23963,11 +23963,11 @@ var require_github = __commonJS({
     var Context = __importStar(require_context());
     var utils_1 = require_utils4();
     exports.context = new Context.Context();
-    function getOctokit(token, options, ...additionalPlugins) {
+    function getOctokit2(token, options, ...additionalPlugins) {
       const GitHubWithPlugins = utils_1.GitHub.plugin(...additionalPlugins);
       return new GitHubWithPlugins((0, utils_1.getOctokitOptions)(token, options));
     }
-    exports.getOctokit = getOctokit;
+    exports.getOctokit = getOctokit2;
   }
 });
 
@@ -41609,16 +41609,53 @@ function parseCommandLine(commandStr) {
     throw new Error("Command string cannot be empty");
   }
   const tokens = [];
-  const regex = /[^\s"']+|"([^"]*)"|'([^']*)'/g;
-  let match;
-  while ((match = regex.exec(trimmed)) !== null) {
-    if (match[1] !== void 0) {
-      tokens.push(match[1]);
-    } else if (match[2] !== void 0) {
-      tokens.push(match[2]);
-    } else {
-      tokens.push(match[0]);
+  let currentToken = "";
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let isEscaped = false;
+  let hasToken = false;
+  for (let i = 0; i < trimmed.length; i++) {
+    const char = trimmed[i];
+    if (isEscaped) {
+      currentToken += char;
+      hasToken = true;
+      isEscaped = false;
+      continue;
     }
+    if (char === "\\" && !inSingleQuote) {
+      isEscaped = true;
+      continue;
+    }
+    if (char === "'" && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote;
+      hasToken = true;
+      continue;
+    }
+    if (char === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+      hasToken = true;
+      continue;
+    }
+    if (/\s/.test(char) && !inSingleQuote && !inDoubleQuote) {
+      if (hasToken) {
+        tokens.push(currentToken);
+        currentToken = "";
+        hasToken = false;
+      }
+      continue;
+    }
+    currentToken += char;
+    hasToken = true;
+  }
+  if (inSingleQuote || inDoubleQuote) {
+    throw new Error("Unclosed quote in command string");
+  }
+  if (isEscaped) {
+    currentToken += "\\";
+    hasToken = true;
+  }
+  if (hasToken) {
+    tokens.push(currentToken);
   }
   if (tokens.length === 0) {
     throw new Error("Command string cannot be empty");
@@ -41674,18 +41711,18 @@ function loadFixtures(casesDir) {
         });
       }
     } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
       fixtures.push({
         tool: entry.name.replace(/\.json$/, ""),
         arguments: {},
         expected: "success",
-        caseFile: relativePath || entry.name
+        caseFile: `${relativePath || entry.name} (malformed JSON: ${message})`
       });
     }
   }
   return fixtures;
 }
 function buildCasesForTools(tools, loadedFixtures) {
-  const toolNames = new Set(tools.map((t) => t.name));
   const cases = [...loadedFixtures];
   for (const tool of tools) {
     const hasFixture = loadedFixtures.some((f) => f.tool === tool.name);
@@ -41708,7 +41745,8 @@ var Ajv2 = import_ajv2.default.default || import_ajv2.default;
 var addFormats = import_ajv_formats2.default.default || import_ajv_formats2.default;
 var ajv = new Ajv2({
   allErrors: true,
-  strict: false
+  strict: false,
+  addUsedSchema: false
 });
 addFormats(ajv);
 function validateJsonSchema(schema, data) {
@@ -41766,7 +41804,7 @@ Expected: ${f.expected}
 Actual: ${f.actual}`).join("\n\n");
 }
 async function runContractCheck(options) {
-  const { command: commandStr, casesDir = "cases" } = options;
+  const { command: commandStr, casesDir = "cases", timeoutMs = 3e4 } = options;
   const results = [];
   let parsed;
   try {
@@ -41798,12 +41836,23 @@ Actual: ${message}`
     args: parsed.args,
     stderr: "pipe"
   });
+  const stderrChunks = [];
+  transport.stderr?.on("data", (chunk) => {
+    stderrChunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  });
+  const getStderrLog = () => {
+    const raw = Buffer.concat(stderrChunks).toString("utf-8").trim();
+    return raw ? `
+Server stderr:
+${raw}` : "";
+  };
   const client = new Client({ name: "mcp-contract-check", version: "1.0.0" }, { capabilities: {} });
   try {
     try {
       await client.connect(transport);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      const stderrLog = getStderrLog();
       return {
         success: false,
         totalCases: 0,
@@ -41814,14 +41863,14 @@ Actual: ${message}`
             tool: "(server)",
             caseFile: "(none)",
             expected: "successful connection over stdio",
-            actual: `failed to connect to server: ${message}`,
+            actual: `failed to connect to server: ${message}${stderrLog}`,
             passed: false
           }
         ],
         report: `Tool: (server)
 Case: (none)
 Expected: successful connection over stdio
-Actual: failed to connect to server: ${message}`
+Actual: failed to connect to server: ${message}${stderrLog}`
       };
     }
     let tools = [];
@@ -41882,8 +41931,10 @@ Actual: failed to list tools: ${message}`
         const callResult = await client.callTool({
           name: testCase.tool,
           arguments: testCase.arguments ?? {}
-        });
+        }, void 0, { timeout: timeoutMs });
         if (callResult.isError === true) {
+          const errorDetail = Array.isArray(callResult.content) ? callResult.content.map((c) => c && typeof c === "object" && typeof c.text === "string" ? c.text : "").filter(Boolean).join("\n") : "";
+          const errorMsg = errorDetail ? `tool returned error: ${errorDetail}` : "tool returned error";
           if (isExpectFail) {
             results.push({
               tool: testCase.tool,
@@ -41897,7 +41948,7 @@ Actual: failed to list tools: ${message}`
               tool: testCase.tool,
               caseFile: testCase.caseFile,
               expected: "success",
-              actual: "tool returned error",
+              actual: errorMsg,
               passed: false
             });
           }
@@ -41945,11 +41996,12 @@ Actual: failed to list tools: ${message}`
             passed: true
           });
         } else {
+          const isSchemaError = Boolean(toolDef.outputSchema) && (message.includes("output schema") || message.includes("Structured content") || message.includes("structured content"));
           results.push({
             tool: testCase.tool,
             caseFile: testCase.caseFile,
-            expected: "success",
-            actual: message,
+            expected: isSchemaError ? "output matching schema" : "success",
+            actual: isSchemaError ? `output does not match schema: ${message}` : message,
             passed: false
           });
         }
@@ -41986,6 +42038,13 @@ async function verifyLicense(options) {
     fetchFn = fetch,
     timeoutMs = 1e4
   } = options;
+  const cleanKey = licenseKey.trim();
+  if (!cleanKey) {
+    return {
+      valid: false,
+      error: "License key cannot be empty"
+    };
+  }
   const validateUrl = "https://api.lemonsqueezy.com/v1/licenses/validate";
   const activateUrl = "https://api.lemonsqueezy.com/v1/licenses/activate";
   let validateRes;
@@ -41996,7 +42055,7 @@ async function verifyLicense(options) {
         "Content-Type": "application/x-www-form-urlencoded",
         Accept: "application/json"
       },
-      body: `license_key=${encodeURIComponent(licenseKey)}`,
+      body: `license_key=${encodeURIComponent(cleanKey)}`,
       signal: AbortSignal.timeout(timeoutMs)
     });
   } catch (err) {
@@ -42022,10 +42081,11 @@ async function verifyLicense(options) {
       error: `Failed to parse license validation response: ${message}`
     };
   }
-  if (validateData.valid === true && validateData.instance !== null && validateData.instance !== void 0) {
+  const instanceObj = validateData.instance && typeof validateData.instance === "object" ? validateData.instance : null;
+  if (validateData.valid === true && instanceObj !== null && (!instanceObj.name || instanceObj.name === instanceName)) {
     return { valid: true };
   }
-  if (validateData.valid === false || validateData.instance === null) {
+  if (validateData.valid === false || instanceObj === null || instanceObj.name && instanceObj.name !== instanceName) {
     let activateRes;
     try {
       activateRes = await fetchFn(activateUrl, {
@@ -42034,7 +42094,7 @@ async function verifyLicense(options) {
           "Content-Type": "application/x-www-form-urlencoded",
           Accept: "application/json"
         },
-        body: `license_key=${encodeURIComponent(licenseKey)}&instance_name=${encodeURIComponent(instanceName)}`,
+        body: `license_key=${encodeURIComponent(cleanKey)}&instance_name=${encodeURIComponent(instanceName)}`,
         signal: AbortSignal.timeout(timeoutMs)
       });
     } catch (err) {
@@ -42077,7 +42137,24 @@ async function verifyLicense(options) {
 // src/action.ts
 async function run(customFetch) {
   try {
-    const isPrivate = Boolean(github.context.payload?.repository?.private);
+    let isPrivate = false;
+    if (github.context.payload?.repository?.private !== void 0) {
+      isPrivate = Boolean(github.context.payload.repository.private);
+    } else {
+      const token = process.env.GITHUB_TOKEN || core.getInput("github-token");
+      if (token) {
+        try {
+          const octokit = github.getOctokit(token);
+          const { data: repoData } = await octokit.rest.repos.get({
+            owner: github.context.repo.owner,
+            repo: github.context.repo.repo
+          });
+          isPrivate = Boolean(repoData.private);
+        } catch {
+          isPrivate = true;
+        }
+      }
+    }
     if (isPrivate) {
       const licenseKey = core.getInput("license-key");
       if (!licenseKey) {

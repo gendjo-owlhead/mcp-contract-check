@@ -5,17 +5,63 @@ export function parseCommandLine(commandStr: string): { command: string; args: s
   }
 
   const tokens: string[] = [];
-  const regex = /[^\s"']+|"([^"]*)"|'([^']*)'/g;
-  let match: RegExpExecArray | null;
+  let currentToken = "";
+  let inSingleQuote = false;
+  let inDoubleQuote = false;
+  let isEscaped = false;
+  let hasToken = false;
 
-  while ((match = regex.exec(trimmed)) !== null) {
-    if (match[1] !== undefined) {
-      tokens.push(match[1]);
-    } else if (match[2] !== undefined) {
-      tokens.push(match[2]);
-    } else {
-      tokens.push(match[0]);
+  for (let i = 0; i < trimmed.length; i++) {
+    const char = trimmed[i];
+
+    if (isEscaped) {
+      currentToken += char;
+      hasToken = true;
+      isEscaped = false;
+      continue;
     }
+
+    if (char === "\\" && !inSingleQuote) {
+      isEscaped = true;
+      continue;
+    }
+
+    if (char === "'" && !inDoubleQuote) {
+      inSingleQuote = !inSingleQuote;
+      hasToken = true;
+      continue;
+    }
+
+    if (char === '"' && !inSingleQuote) {
+      inDoubleQuote = !inDoubleQuote;
+      hasToken = true;
+      continue;
+    }
+
+    if (/\s/.test(char) && !inSingleQuote && !inDoubleQuote) {
+      if (hasToken) {
+        tokens.push(currentToken);
+        currentToken = "";
+        hasToken = false;
+      }
+      continue;
+    }
+
+    currentToken += char;
+    hasToken = true;
+  }
+
+  if (inSingleQuote || inDoubleQuote) {
+    throw new Error("Unclosed quote in command string");
+  }
+
+  if (isEscaped) {
+    currentToken += "\\";
+    hasToken = true;
+  }
+
+  if (hasToken) {
+    tokens.push(currentToken);
   }
 
   if (tokens.length === 0) {

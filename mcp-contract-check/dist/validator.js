@@ -6,6 +6,7 @@ const addFormats = addFormatsPkg.default ||
 const ajv = new Ajv({
     allErrors: true,
     strict: false,
+    addUsedSchema: false,
 });
 addFormats(ajv);
 export function validateJsonSchema(schema, data) {

@@ -14,6 +14,7 @@ export interface CaseResult {
 export interface CheckOptions {
     command: string;
     casesDir?: string;
+    timeoutMs?: number;
 }
 export interface CheckSummary {
     success: boolean;

@@ -20,6 +20,14 @@ export async function verifyLicense(
     timeoutMs = 10000,
   } = options;
 
+  const cleanKey = licenseKey.trim();
+  if (!cleanKey) {
+    return {
+      valid: false,
+      error: "License key cannot be empty",
+    };
+  }
+
   const validateUrl = "https://api.lemonsqueezy.com/v1/licenses/validate";
   const activateUrl = "https://api.lemonsqueezy.com/v1/licenses/activate";
 
@@ -31,7 +39,7 @@ export async function verifyLicense(
         "Content-Type": "application/x-www-form-urlencoded",
         Accept: "application/json",
       },
-      body: `license_key=${encodeURIComponent(licenseKey)}`,
+      body: `license_key=${encodeURIComponent(cleanKey)}`,
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err: unknown) {
@@ -60,13 +68,22 @@ export async function verifyLicense(
     };
   }
 
-  // If valid is true and already has an active instance, continue
-  if (validateData.valid === true && validateData.instance !== null && validateData.instance !== undefined) {
+  const instanceObj =
+    validateData.instance && typeof validateData.instance === "object"
+      ? (validateData.instance as { id?: string; name?: string })
+      : null;
+
+  // If valid is true and instance matches instanceName (or instance has no name set yet)
+  if (
+    validateData.valid === true &&
+    instanceObj !== null &&
+    (!instanceObj.name || instanceObj.name === instanceName)
+  ) {
     return { valid: true };
   }
 
-  // If valid is false, or instance is null and the key still needs activation, POST to activate
-  if (validateData.valid === false || validateData.instance === null) {
+  // If valid is false, instance is null, or instance is for another repo, POST to activate
+  if (validateData.valid === false || instanceObj === null || (instanceObj.name && instanceObj.name !== instanceName)) {
     let activateRes: Response;
     try {
       activateRes = await fetchFn(activateUrl, {
@@ -75,7 +92,7 @@ export async function verifyLicense(
           "Content-Type": "application/x-www-form-urlencoded",
           Accept: "application/json",
         },
-        body: `license_key=${encodeURIComponent(licenseKey)}&instance_name=${encodeURIComponent(instanceName)}`,
+        body: `license_key=${encodeURIComponent(cleanKey)}&instance_name=${encodeURIComponent(instanceName)}`,
         signal: AbortSignal.timeout(timeoutMs),
       });
     } catch (err: unknown) {

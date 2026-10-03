@@ -53,12 +53,13 @@ export function loadFixtures(casesDir: string): FixtureCase[] {
         });
       }
     } catch (err: unknown) {
-      // If a JSON file is invalid, push a case that fails
+      const message = err instanceof Error ? err.message : String(err);
+      // If a JSON file is invalid, push a case that reports the malformed syntax
       fixtures.push({
         tool: entry.name.replace(/\.json$/, ""),
         arguments: {},
         expected: "success",
-        caseFile: relativePath || entry.name,
+        caseFile: `${relativePath || entry.name} (malformed JSON: ${message})`,
       });
     }
   }
@@ -70,7 +71,6 @@ export function buildCasesForTools(
   tools: Array<{ name: string }>,
   loadedFixtures: FixtureCase[]
 ): FixtureCase[] {
-  const toolNames = new Set(tools.map((t) => t.name));
   const cases: FixtureCase[] = [...loadedFixtures];
 
   // For any tool that has no fixture, add a default case

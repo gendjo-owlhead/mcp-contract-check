@@ -7,7 +7,24 @@ export async function run(
   customFetch?: typeof fetch
 ): Promise<void> {
   try {
-    const isPrivate = Boolean(github.context.payload?.repository?.private);
+    let isPrivate = false;
+    if (github.context.payload?.repository?.private !== undefined) {
+      isPrivate = Boolean(github.context.payload.repository.private);
+    } else {
+      const token = process.env.GITHUB_TOKEN || core.getInput("github-token");
+      if (token) {
+        try {
+          const octokit = github.getOctokit(token);
+          const { data: repoData } = await octokit.rest.repos.get({
+            owner: github.context.repo.owner,
+            repo: github.context.repo.repo,
+          });
+          isPrivate = Boolean(repoData.private);
+        } catch {
+          isPrivate = true;
+        }
+      }
+    }
 
     if (isPrivate) {
       const licenseKey = core.getInput("license-key");
