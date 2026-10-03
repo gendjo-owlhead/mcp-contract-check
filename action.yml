@@ -1,0 +1,20 @@
+name: MCP contract check
+description: Fail the build when an MCP server's tool responses do not match their JSON Schema.
+author: gendzaj
+inputs:
+  command:
+    description: The stdio server command
+    required: true
+  cases:
+    description: Directory containing test case fixtures
+    required: false
+    default: cases
+  license-key:
+    description: License key for private repositories
+    required: false
+branding:
+  icon: shield
+  color: blue
+runs:
+  using: node20
+  main: mcp-contract-check-action/dist/index.js

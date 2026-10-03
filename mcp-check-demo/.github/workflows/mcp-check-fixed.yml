@@ -1,0 +1,27 @@
+name: MCP Contract Check - Fixed Server
+
+on:
+  workflow_dispatch:
+
+jobs:
+  check-fixed:
+    name: Check Fixed Server (Passes)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install demo dependencies
+        run: npm install
+        working-directory: mcp-check-demo
+
+      - name: Run MCP check on fixed server
+        uses: ./mcp-contract-check-action
+        with:
+          command: "node server.js --fixed"
+          cases: "cases"

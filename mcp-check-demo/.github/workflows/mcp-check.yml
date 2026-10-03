@@ -1,0 +1,62 @@
+name: MCP Contract Check
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Server target to check (broken or fixed)"
+        required: true
+        default: "broken"
+        type: choice
+        options:
+          - broken
+          - fixed
+
+jobs:
+  check-broken:
+    name: Check Broken Server (Fails)
+    if: ${{ github.event.inputs.target == 'broken' || github.event.inputs.target == '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install demo dependencies
+        run: npm install
+        working-directory: mcp-check-demo
+
+      - name: Run MCP check on broken server
+        uses: ./mcp-contract-check-action
+        with:
+          command: "node server.js --broken"
+          cases: "cases"
+
+  check-fixed:
+    name: Check Fixed Server (Passes)
+    if: ${{ github.event.inputs.target == 'fixed' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install demo dependencies
+        run: npm install
+        working-directory: mcp-check-demo
+
+      - name: Run MCP check on fixed server
+        uses: ./mcp-contract-check-action
+        with:
+          command: "node server.js --fixed"
+          cases: "cases"

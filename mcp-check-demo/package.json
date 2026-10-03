@@ -1,0 +1,14 @@
+{
+  "name": "mcp-check-demo",
+  "version": "1.0.0",
+  "description": "Minimal stdio MCP demo server for contract checking",
+  "type": "module",
+  "scripts": {
+    "check:broken": "mcp-check --command \"node server.js --broken\" --cases cases",
+    "check:fixed": "mcp-check --command \"node server.js --fixed\" --cases cases"
+  },
+  "dependencies": {
+    "@local/mcp-contract-check": "file:../mcp-contract-check",
+    "@modelcontextprotocol/sdk": "^1.32.0"
+  }
+}

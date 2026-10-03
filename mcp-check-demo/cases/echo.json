@@ -1,0 +1,7 @@
+{
+  "tool": "echo",
+  "arguments": {
+    "text": "hi"
+  },
+  "expected": "success"
+}
