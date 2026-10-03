@@ -216,4 +216,59 @@ describe("runContractCheck", () => {
       }
     }
   });
+
+  it("saves contract snapshot to file with saveContract option", async () => {
+    const snapshotFile = path.join(__dirname, "test-snapshot.json");
+    try {
+      const res = await runContractCheck({
+        command: `node "${serverScript}" valid`,
+        casesDir: testCasesDir,
+        saveContract: snapshotFile,
+      });
+
+      expect(res.success).toBe(true);
+      expect(fs.existsSync(snapshotFile)).toBe(true);
+
+      const content = JSON.parse(fs.readFileSync(snapshotFile, "utf-8"));
+      expect(content.tools).toBeDefined();
+      expect(content.tools.some((t: any) => t.name === "greet")).toBe(true);
+    } finally {
+      if (fs.existsSync(snapshotFile)) {
+        fs.unlinkSync(snapshotFile);
+      }
+    }
+  });
+
+  it("evaluates baseline and detects breaking changes", async () => {
+    const snapshotFile = path.join(__dirname, "baseline-test.json");
+    const baselineData = {
+      version: "1.0.0",
+      generatedAt: new Date().toISOString(),
+      tools: [
+        {
+          name: "removedTool",
+          inputSchema: { type: "object" },
+        },
+      ],
+    };
+
+    fs.writeFileSync(snapshotFile, JSON.stringify(baselineData));
+
+    try {
+      const res = await runContractCheck({
+        command: `node "${serverScript}" valid`,
+        casesDir: testCasesDir,
+        baseline: snapshotFile,
+      });
+
+      expect(res.success).toBe(false);
+      expect(res.diff?.compatible).toBe(false);
+      expect(res.report).toContain("CONTRACT BREAKING CHANGES");
+      expect(res.report).toContain("[BREAKING] removedTool");
+    } finally {
+      if (fs.existsSync(snapshotFile)) {
+        fs.unlinkSync(snapshotFile);
+      }
+    }
+  });
 });

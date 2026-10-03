@@ -25,6 +25,18 @@ function parseArgs(args) {
         else if (arg.startsWith("--cases=")) {
             result.cases = arg.slice("--cases=".length);
         }
+        else if (arg === "--baseline" || arg === "-b") {
+            result.baseline = args[++i];
+        }
+        else if (arg.startsWith("--baseline=")) {
+            result.baseline = arg.slice("--baseline=".length);
+        }
+        else if (arg === "--save-contract" || arg === "-s") {
+            result.saveContract = args[++i];
+        }
+        else if (arg.startsWith("--save-contract=")) {
+            result.saveContract = arg.slice("--save-contract=".length);
+        }
     }
     return result;
 }
@@ -34,14 +46,16 @@ async function main() {
         console.log(`mcp-check - Model Context Protocol tool contract testing
 
 Usage:
-  mcp-check --command "<stdio server command>" [--cases <dir>] [--fuzz]
+  mcp-check --command "<stdio server command>" [options]
 
 Options:
-  -c, --command <cmd>    The stdio server command to start your MCP server (required)
-  -d, --cases <dir>      Directory containing test case fixtures (default: "cases")
-  -f, --fuzz             Synthesize valid arguments from tool input schemas when fixtures are missing
-  -h, --help             Show this help message
-  -v, --version          Show version number
+  -c, --command <cmd>        The stdio server command to start your MCP server (required)
+  -d, --cases <dir>          Directory containing test case fixtures (default: "cases")
+  -f, --fuzz                 Synthesize valid arguments from tool input schemas when fixtures are missing
+  -b, --baseline <file>      Fail if server contracts introduce breaking changes against baseline JSON
+  -s, --save-contract <file> Save discovered server tool contracts to a JSON snapshot file
+  -h, --help                 Show this help message
+  -v, --version              Show version number
 `);
         process.exit(0);
     }
@@ -51,13 +65,15 @@ Options:
     }
     if (!parsed.command) {
         console.error('Error: missing required option --command "<stdio server command>"');
-        console.error('Usage: mcp-check --command "<stdio server command>" [--cases <dir>] [--fuzz]');
+        console.error('Usage: mcp-check --command "<stdio server command>" [options]');
         process.exit(1);
     }
     const result = await runContractCheck({
         command: parsed.command,
         casesDir: parsed.cases ?? "cases",
         fuzz: Boolean(parsed.fuzz),
+        baseline: parsed.baseline,
+        saveContract: parsed.saveContract,
     });
     if (result.success) {
         console.log("ok");

@@ -1,3 +1,4 @@
+import type { DiffResult } from "./diff.js";
 export interface FixtureCase {
     tool: string;
     arguments?: Record<string, unknown>;
@@ -15,6 +16,8 @@ export interface CheckOptions {
     command: string;
     casesDir?: string;
     fuzz?: boolean;
+    baseline?: string;
+    saveContract?: string;
     timeoutMs?: number;
 }
 export interface CheckSummary {
@@ -23,5 +26,6 @@ export interface CheckSummary {
     passedCases: number;
     failedCases: number;
     results: CaseResult[];
+    diff?: DiffResult;
     report?: string;
 }

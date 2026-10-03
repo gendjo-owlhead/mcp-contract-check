@@ -1,6 +1,9 @@
+import fs from "node:fs";
+import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { parseCommandLine } from "./command-parser.js";
+import { ContractDiff, type ContractSnapshot, type DiffResult } from "./diff.js";
 import { buildCasesForTools, loadFixtures } from "./fixtures.js";
 import type { CaseResult, CheckOptions, CheckSummary, FixtureCase } from "./types.js";
 import { validateJsonSchema } from "./validator.js";
@@ -54,6 +57,7 @@ export function formatReport(results: CaseResult[]): string {
 export async function runContractCheck(options: CheckOptions): Promise<CheckSummary> {
   const { command: commandStr, casesDir = "cases", timeoutMs = 30000 } = options;
   const results: CaseResult[] = [];
+  let diffResult: DiffResult | undefined;
 
   let parsed: { command: string; args: string[] };
   try {
@@ -150,6 +154,82 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
         ],
         report: `Tool: (server)\nCase: (none)\nExpected: successful listTools response\nActual: failed to list tools: ${message}`,
       };
+    }
+
+    if (options.saveContract) {
+      const snapshot = ContractDiff.createSnapshot(tools);
+      const targetPath = path.resolve(process.cwd(), options.saveContract);
+      const parentDir = path.dirname(targetPath);
+      if (!fs.existsSync(parentDir)) {
+        fs.mkdirSync(parentDir, { recursive: true });
+      }
+      fs.writeFileSync(targetPath, JSON.stringify(snapshot, null, 2), "utf-8");
+    }
+
+    if (options.baseline) {
+      const baselinePath = path.resolve(process.cwd(), options.baseline);
+      if (!fs.existsSync(baselinePath)) {
+        return {
+          success: false,
+          totalCases: 0,
+          passedCases: 0,
+          failedCases: 1,
+          results: [
+            {
+              tool: "(baseline)",
+              caseFile: options.baseline,
+              expected: "existing baseline file",
+              actual: `baseline snapshot not found at ${options.baseline}`,
+              passed: false,
+            },
+          ],
+          report: `Tool: (baseline)\nCase: ${options.baseline}\nExpected: existing baseline file\nActual: baseline snapshot not found at ${options.baseline}`,
+        };
+      }
+
+      let baselineSnapshot: ContractSnapshot;
+      try {
+        const raw = fs.readFileSync(baselinePath, "utf-8");
+        baselineSnapshot = JSON.parse(raw);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          success: false,
+          totalCases: 0,
+          passedCases: 0,
+          failedCases: 1,
+          results: [
+            {
+              tool: "(baseline)",
+              caseFile: options.baseline,
+              expected: "valid JSON baseline snapshot",
+              actual: `failed to parse baseline JSON: ${message}`,
+              passed: false,
+            },
+          ],
+          report: `Tool: (baseline)\nCase: ${options.baseline}\nExpected: valid JSON baseline snapshot\nActual: failed to parse baseline JSON: ${message}`,
+        };
+      }
+
+      diffResult = ContractDiff.compare(baselineSnapshot, tools);
+      if (!diffResult.compatible) {
+        const diffReport = ContractDiff.formatReport(diffResult);
+        return {
+          success: false,
+          totalCases: diffResult.issues.length,
+          passedCases: diffResult.nonBreakingCount,
+          failedCases: diffResult.breakingCount,
+          diff: diffResult,
+          results: diffResult.issues.map((i) => ({
+            tool: i.tool,
+            caseFile: options.baseline || "baseline",
+            expected: "backward-compatible contract",
+            actual: `[${i.severity.toUpperCase()}] ${i.message}`,
+            passed: i.severity === "non-breaking",
+          })),
+          report: diffReport,
+        };
+      }
     }
 
     const loaded = loadFixtures(casesDir);
@@ -318,6 +398,7 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
     passedCases,
     failedCases,
     results,
+    diff: diffResult,
     report: formatReport(results),
   };
 }

@@ -40,4 +40,5 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Contract violation fail](./contract-violation-fail.md) covers detecting tool output schema deviations with structured failure reports and exit code 1.
 - [Default fixture check](./default-fixture-check.md) covers zero-config tool validation when no fixture directory is provided.
 - [Fuzz schema generation](./fuzz-schema-generation.md) covers automatic test argument synthesis from tool input schemas via `--fuzz`.
+- [Breaking change detection](./breaking-change-detection.md) covers snapshotting contracts with `--save-contract` and detecting breaking schema drift with `--baseline`.
 - [CLI help and version](./cli-help-and-version.md) covers CLI flags `--help`, `--version`, and required argument validation.

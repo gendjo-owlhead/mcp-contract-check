@@ -8,4 +8,13 @@ export type {
   FixtureCase,
 } from "./types.js";
 export { SchemaFuzzer } from "./fuzzer.js";
+export {
+  ContractDiff,
+  type ContractSnapshot,
+  type DiffResult,
+  type DriftIssue,
+  type DriftSeverity,
+  type DriftType,
+  type ToolContract,
+} from "./diff.js";
 export { validateJsonSchema } from "./validator.js";
