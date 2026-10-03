@@ -153,7 +153,7 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
     }
 
     const loaded = loadFixtures(casesDir);
-    const testCases: FixtureCase[] = buildCasesForTools(tools, loaded);
+    const testCases: FixtureCase[] = buildCasesForTools(tools, loaded, { fuzz: options.fuzz });
 
     for (const testCase of testCases) {
       const toolDef = tools.find((t) => t.name === testCase.tool);

@@ -41669,6 +41669,152 @@ function parseCommandLine(commandStr) {
 // ../mcp-contract-check/dist/fixtures.js
 import fs from "node:fs";
 import path from "node:path";
+
+// ../mcp-contract-check/dist/fuzzer.js
+var SchemaFuzzer = class {
+  /**
+   * Generates a valid payload matching a given JSON Schema.
+   *
+   * @param schema The JSON Schema definition (typically tool.inputSchema).
+   * @param propName Optional property name for contextual dummy values.
+   */
+  static generateValidPayload(schema, propName = "param") {
+    if (!schema || typeof schema !== "object" || Object.keys(schema).length === 0) {
+      return {};
+    }
+    if ("const" in schema) {
+      return schema.const;
+    }
+    if (Array.isArray(schema.enum) && schema.enum.length > 0) {
+      return schema.enum[0];
+    }
+    if ("default" in schema && schema.default !== void 0) {
+      return schema.default;
+    }
+    if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
+      return this.generateValidPayload(schema.oneOf[0], propName);
+    }
+    if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
+      return this.generateValidPayload(schema.anyOf[0], propName);
+    }
+    let rawType = schema.type;
+    if (Array.isArray(rawType)) {
+      rawType = rawType.find((t) => t !== "null") || rawType[0];
+    }
+    if (!rawType) {
+      if (schema.properties) {
+        rawType = "object";
+      } else if (schema.items) {
+        rawType = "array";
+      } else {
+        rawType = "string";
+      }
+    }
+    switch (rawType) {
+      case "string":
+        return this.generateString(schema, propName);
+      case "integer":
+      case "number":
+        return this.generateNumber(schema);
+      case "boolean":
+        return true;
+      case "array":
+        return this.generateArray(schema, propName);
+      case "object":
+        return this.generateObject(schema);
+      case "null":
+        return null;
+      default:
+        return {};
+    }
+  }
+  static generateString(schema, propName) {
+    const format = typeof schema.format === "string" ? schema.format : "";
+    let val;
+    switch (format) {
+      case "email":
+        val = "user@example.com";
+        break;
+      case "uri":
+      case "url":
+        val = "https://example.com";
+        break;
+      case "date-time":
+        val = (/* @__PURE__ */ new Date()).toISOString();
+        break;
+      case "date":
+        val = "2026-01-01";
+        break;
+      case "uuid":
+        val = "123e4567-e89b-12d3-a456-426614174000";
+        break;
+      case "ipv4":
+        val = "127.0.0.1";
+        break;
+      default:
+        val = propName ? `test-${propName}` : "test-string";
+        break;
+    }
+    const minLength = typeof schema.minLength === "number" ? schema.minLength : 0;
+    const maxLength = typeof schema.maxLength === "number" ? schema.maxLength : Infinity;
+    while (val.length < minLength) {
+      val += "_pad";
+    }
+    if (val.length > maxLength) {
+      val = val.slice(0, maxLength);
+    }
+    return val;
+  }
+  static generateNumber(schema) {
+    let min = 1;
+    if (typeof schema.minimum === "number") {
+      min = schema.minimum;
+    } else if (typeof schema.exclusiveMinimum === "number") {
+      min = schema.exclusiveMinimum + 1;
+    }
+    let val = Math.max(min, 1);
+    if (typeof schema.maximum === "number" && val > schema.maximum) {
+      val = schema.maximum;
+    } else if (typeof schema.exclusiveMaximum === "number" && val >= schema.exclusiveMaximum) {
+      val = schema.exclusiveMaximum - 1;
+    }
+    return val;
+  }
+  static generateArray(schema, propName) {
+    const itemsSchema = schema.items;
+    const minItems = typeof schema.minItems === "number" ? schema.minItems : 1;
+    const count = Math.max(minItems, 1);
+    const result = [];
+    for (let i = 0; i < count; i++) {
+      if (itemsSchema) {
+        result.push(this.generateValidPayload(itemsSchema, `${propName}_item`));
+      } else {
+        result.push("item");
+      }
+    }
+    return result;
+  }
+  static generateObject(schema) {
+    const result = {};
+    const properties = schema.properties || {};
+    const required2 = Array.isArray(schema.required) ? schema.required : [];
+    for (const key of required2) {
+      if (properties[key]) {
+        result[key] = this.generateValidPayload(properties[key], key);
+      } else {
+        result[key] = "test-value";
+      }
+    }
+    for (const [key, propSchema] of Object.entries(properties)) {
+      if (!(key in result)) {
+        result[key] = this.generateValidPayload(propSchema, key);
+      }
+    }
+    return result;
+  }
+};
+
+// ../mcp-contract-check/dist/fixtures.js
 function loadFixtures(casesDir) {
   const resolvedDir = path.resolve(process.cwd(), casesDir);
   if (!fs.existsSync(resolvedDir)) {
@@ -41722,17 +41868,27 @@ function loadFixtures(casesDir) {
   }
   return fixtures;
 }
-function buildCasesForTools(tools, loadedFixtures) {
+function buildCasesForTools(tools, loadedFixtures, options) {
   const cases = [...loadedFixtures];
   for (const tool of tools) {
     const hasFixture = loadedFixtures.some((f) => f.tool === tool.name);
     if (!hasFixture) {
-      cases.push({
-        tool: tool.name,
-        arguments: {},
-        expected: "success",
-        caseFile: "(default)"
-      });
+      if (options?.fuzz) {
+        const payload = SchemaFuzzer.generateValidPayload(tool.inputSchema) || {};
+        cases.push({
+          tool: tool.name,
+          arguments: payload,
+          expected: "success",
+          caseFile: "(fuzzed)"
+        });
+      } else {
+        cases.push({
+          tool: tool.name,
+          arguments: {},
+          expected: "success",
+          caseFile: "(default)"
+        });
+      }
     }
   }
   return cases;
@@ -41900,7 +42056,7 @@ Actual: failed to list tools: ${message}`
       };
     }
     const loaded = loadFixtures(casesDir);
-    const testCases = buildCasesForTools(tools, loaded);
+    const testCases = buildCasesForTools(tools, loaded, { fuzz: options.fuzz });
     for (const testCase of testCases) {
       const toolDef = tools.find((t) => t.name === testCase.tool);
       if (!toolDef) {

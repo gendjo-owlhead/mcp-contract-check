@@ -185,4 +185,35 @@ describe("runContractCheck", () => {
     const failCase = result.results.find((r) => r.tool === "failTool");
     expect(failCase?.passed).toBe(true);
   });
+
+  it("synthesizes valid inputs with fuzz option when fixtures are missing", async () => {
+    const emptyDir = path.join(__dirname, "empty-cases-test");
+    if (!fs.existsSync(emptyDir)) {
+      fs.mkdirSync(emptyDir, { recursive: true });
+    }
+
+    try {
+      const noFuzzRes = await runContractCheck({
+        command: `node "${serverScript}" valid`,
+        casesDir: emptyDir,
+        fuzz: false,
+      });
+      const greetNoFuzz = noFuzzRes.results.find((r) => r.tool === "greet");
+      expect(greetNoFuzz?.passed).toBe(false);
+      expect(greetNoFuzz?.actual).toContain("fixture error: arguments do not match input schema");
+
+      const fuzzRes = await runContractCheck({
+        command: `node "${serverScript}" valid`,
+        casesDir: emptyDir,
+        fuzz: true,
+      });
+      const greetFuzzed = fuzzRes.results.find((r) => r.tool === "greet");
+      expect(greetFuzzed?.passed).toBe(true);
+      expect(greetFuzzed?.caseFile).toBe("(fuzzed)");
+    } finally {
+      if (fs.existsSync(emptyDir)) {
+        fs.rmSync(emptyDir, { recursive: true, force: true });
+      }
+    }
+  });
 });

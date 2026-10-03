@@ -7,4 +7,5 @@ export type {
   CaseResult,
   FixtureCase,
 } from "./types.js";
+export { SchemaFuzzer } from "./fuzzer.js";
 export { validateJsonSchema } from "./validator.js";

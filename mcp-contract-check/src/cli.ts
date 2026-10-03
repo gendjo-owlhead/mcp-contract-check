@@ -4,10 +4,17 @@ import { runContractCheck } from "./checker.js";
 function parseArgs(args: string[]): {
   command?: string;
   cases?: string;
+  fuzz?: boolean;
   help?: boolean;
   version?: boolean;
 } {
-  const result: { command?: string; cases?: string; help?: boolean; version?: boolean } = {};
+  const result: {
+    command?: string;
+    cases?: string;
+    fuzz?: boolean;
+    help?: boolean;
+    version?: boolean;
+  } = {};
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -15,6 +22,8 @@ function parseArgs(args: string[]): {
       result.help = true;
     } else if (arg === "--version" || arg === "-v") {
       result.version = true;
+    } else if (arg === "--fuzz" || arg === "-f") {
+      result.fuzz = true;
     } else if (arg === "--command" || arg === "-c") {
       result.command = args[++i];
     } else if (arg.startsWith("--command=")) {
@@ -36,11 +45,12 @@ async function main(): Promise<void> {
     console.log(`mcp-check - Model Context Protocol tool contract testing
 
 Usage:
-  mcp-check --command "<stdio server command>" [--cases <dir>]
+  mcp-check --command "<stdio server command>" [--cases <dir>] [--fuzz]
 
 Options:
   -c, --command <cmd>    The stdio server command to start your MCP server (required)
   -d, --cases <dir>      Directory containing test case fixtures (default: "cases")
+  -f, --fuzz             Synthesize valid arguments from tool input schemas when fixtures are missing
   -h, --help             Show this help message
   -v, --version          Show version number
 `);
@@ -54,13 +64,14 @@ Options:
 
   if (!parsed.command) {
     console.error('Error: missing required option --command "<stdio server command>"');
-    console.error('Usage: mcp-check --command "<stdio server command>" [--cases <dir>]');
+    console.error('Usage: mcp-check --command "<stdio server command>" [--cases <dir>] [--fuzz]');
     process.exit(1);
   }
 
   const result = await runContractCheck({
     command: parsed.command,
     casesDir: parsed.cases ?? "cases",
+    fuzz: Boolean(parsed.fuzz),
   });
 
   if (result.success) {

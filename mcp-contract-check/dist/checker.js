@@ -130,7 +130,7 @@ export async function runContractCheck(options) {
             };
         }
         const loaded = loadFixtures(casesDir);
-        const testCases = buildCasesForTools(tools, loaded);
+        const testCases = buildCasesForTools(tools, loaded, { fuzz: options.fuzz });
         for (const testCase of testCases) {
             const toolDef = tools.find((t) => t.name === testCase.tool);
             if (!toolDef) {

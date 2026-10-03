@@ -16,6 +16,7 @@ export interface CaseResult {
 export interface CheckOptions {
   command: string;
   casesDir?: string;
+  fuzz?: boolean;
   timeoutMs?: number;
 }
 

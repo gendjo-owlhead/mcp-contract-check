@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { SchemaFuzzer } from "./fuzzer.js";
 import type { FixtureCase } from "./types.js";
 
 export function loadFixtures(casesDir: string): FixtureCase[] {
@@ -68,21 +69,35 @@ export function loadFixtures(casesDir: string): FixtureCase[] {
 }
 
 export function buildCasesForTools(
-  tools: Array<{ name: string }>,
-  loadedFixtures: FixtureCase[]
+  tools: Array<{ name: string; inputSchema?: Record<string, unknown> }>,
+  loadedFixtures: FixtureCase[],
+  options?: { fuzz?: boolean }
 ): FixtureCase[] {
   const cases: FixtureCase[] = [...loadedFixtures];
 
-  // For any tool that has no fixture, add a default case
+  // For any tool that has no fixture, add a default or fuzzed case
   for (const tool of tools) {
     const hasFixture = loadedFixtures.some((f) => f.tool === tool.name);
     if (!hasFixture) {
-      cases.push({
-        tool: tool.name,
-        arguments: {},
-        expected: "success",
-        caseFile: "(default)",
-      });
+      if (options?.fuzz) {
+        const payload = (SchemaFuzzer.generateValidPayload(tool.inputSchema) || {}) as Record<
+          string,
+          unknown
+        >;
+        cases.push({
+          tool: tool.name,
+          arguments: payload,
+          expected: "success",
+          caseFile: "(fuzzed)",
+        });
+      } else {
+        cases.push({
+          tool: tool.name,
+          arguments: {},
+          expected: "success",
+          caseFile: "(default)",
+        });
+      }
     }
   }
 
