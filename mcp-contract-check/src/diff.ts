@@ -1,0 +1,241 @@
+/**
+ * ContractDiff
+ * Detects breaking changes and schema drift between MCP tool contracts.
+ */
+
+export interface ToolContract {
+  name: string;
+  description?: string;
+  inputSchema?: Record<string, unknown>;
+  outputSchema?: Record<string, unknown>;
+}
+
+export interface ContractSnapshot {
+  version: string;
+  generatedAt: string;
+  tools: ToolContract[];
+}
+
+export type DriftSeverity = "breaking" | "non-breaking";
+
+export type DriftType =
+  | "tool_removed"
+  | "tool_added"
+  | "input_required_added"
+  | "input_enum_removed"
+  | "input_type_narrowed"
+  | "output_property_removed"
+  | "output_required_added";
+
+export interface DriftIssue {
+  tool: string;
+  type: DriftType;
+  severity: DriftSeverity;
+  message: string;
+  path?: string;
+}
+
+export interface DiffResult {
+  compatible: boolean;
+  breakingCount: number;
+  nonBreakingCount: number;
+  issues: DriftIssue[];
+}
+
+export class ContractDiff {
+  public static createSnapshot(tools: ToolContract[]): ContractSnapshot {
+    return {
+      version: "1.0.0",
+      generatedAt: new Date().toISOString(),
+      tools: tools.map((t) => ({
+        name: t.name,
+        description: t.description,
+        inputSchema: t.inputSchema ? JSON.parse(JSON.stringify(t.inputSchema)) : undefined,
+        outputSchema: t.outputSchema ? JSON.parse(JSON.stringify(t.outputSchema)) : undefined,
+      })),
+    };
+  }
+
+  public static compare(
+    baseline: ContractSnapshot,
+    currentTools: ToolContract[]
+  ): DiffResult {
+    const issues: DriftIssue[] = [];
+    const currentToolMap = new Map<string, ToolContract>(
+      currentTools.map((t) => [t.name, t])
+    );
+    const baselineToolMap = new Map<string, ToolContract>(
+      baseline.tools.map((t) => [t.name, t])
+    );
+
+    // 1. Check for removed tools (breaking)
+    for (const [name] of baselineToolMap) {
+      if (!currentToolMap.has(name)) {
+        issues.push({
+          tool: name,
+          type: "tool_removed",
+          severity: "breaking",
+          message: `Tool '${name}' was removed from the server`,
+        });
+      }
+    }
+
+    // 2. Check for added tools (non-breaking)
+    for (const [name] of currentToolMap) {
+      if (!baselineToolMap.has(name)) {
+        issues.push({
+          tool: name,
+          type: "tool_added",
+          severity: "non-breaking",
+          message: `New tool '${name}' was added to the server`,
+        });
+      }
+    }
+
+    // 3. For tools present in both, compare schemas
+    for (const [name, baselineTool] of baselineToolMap) {
+      const currentTool = currentToolMap.get(name);
+      if (!currentTool) {
+        continue;
+      }
+
+      // Check input schema changes
+      this.compareInputSchemas(name, baselineTool.inputSchema, currentTool.inputSchema, issues);
+
+      // Check output schema changes
+      this.compareOutputSchemas(name, baselineTool.outputSchema, currentTool.outputSchema, issues);
+    }
+
+    const breakingCount = issues.filter((i) => i.severity === "breaking").length;
+    const nonBreakingCount = issues.length - breakingCount;
+
+    return {
+      compatible: breakingCount === 0,
+      breakingCount,
+      nonBreakingCount,
+      issues,
+    };
+  }
+
+  private static compareInputSchemas(
+    toolName: string,
+    baselineSchema?: Record<string, unknown>,
+    currentSchema?: Record<string, unknown>,
+    issues: DriftIssue[] = []
+  ): void {
+    if (!baselineSchema && !currentSchema) {
+      return;
+    }
+
+    const baseProps = (baselineSchema?.properties || {}) as Record<string, Record<string, unknown>>;
+    const currProps = (currentSchema?.properties || {}) as Record<string, Record<string, unknown>>;
+
+    const baseRequired = new Set<string>(
+      Array.isArray(baselineSchema?.required) ? (baselineSchema?.required as string[]) : []
+    );
+    const currRequired = new Set<string>(
+      Array.isArray(currentSchema?.required) ? (currentSchema?.required as string[]) : []
+    );
+
+    // Check newly required properties (breaking: existing callers won't provide them)
+    for (const req of currRequired) {
+      if (!baseRequired.has(req)) {
+        issues.push({
+          tool: toolName,
+          type: "input_required_added",
+          severity: "breaking",
+          path: `arguments.${req}`,
+          message: `Tool '${toolName}' added new required input property '${req}'`,
+        });
+      }
+    }
+
+    // Check property-level constraints for common properties
+    for (const [propName, baseProp] of Object.entries(baseProps)) {
+      const currProp = currProps[propName];
+      if (!currProp) {
+        continue;
+      }
+
+      // Check enum narrowing (breaking: callers sending an allowed value will now fail)
+      if (Array.isArray(baseProp.enum) && Array.isArray(currProp.enum)) {
+        const currEnumSet = new Set(currProp.enum);
+        const removedEnums = baseProp.enum.filter((val) => !currEnumSet.has(val));
+        if (removedEnums.length > 0) {
+          issues.push({
+            tool: toolName,
+            type: "input_enum_removed",
+            severity: "breaking",
+            path: `arguments.${propName}`,
+            message: `Tool '${toolName}' input '${propName}' removed enum values: ${removedEnums.join(", ")}`,
+          });
+        }
+      }
+
+      // Check type changes (e.g. was string, now integer)
+      if (baseProp.type && currProp.type && baseProp.type !== currProp.type) {
+        // If types are different and not widened, it's breaking
+        issues.push({
+          tool: toolName,
+          type: "input_type_narrowed",
+          severity: "breaking",
+          path: `arguments.${propName}`,
+          message: `Tool '${toolName}' input '${propName}' changed type from '${baseProp.type}' to '${currProp.type}'`,
+        });
+      }
+    }
+  }
+
+  private static compareOutputSchemas(
+    toolName: string,
+    baselineSchema?: Record<string, unknown>,
+    currentSchema?: Record<string, unknown>,
+    issues: DriftIssue[] = []
+  ): void {
+    if (!baselineSchema || !currentSchema) {
+      return;
+    }
+
+    const baseProps = (baselineSchema.properties || {}) as Record<string, Record<string, unknown>>;
+    const currProps = (currentSchema.properties || {}) as Record<string, Record<string, unknown>>;
+
+    // Check removed output properties (breaking: callers expecting that property will miss it)
+    for (const propName of Object.keys(baseProps)) {
+      if (!(propName in currProps)) {
+        issues.push({
+          tool: toolName,
+          type: "output_property_removed",
+          severity: "breaking",
+          path: `output.${propName}`,
+          message: `Tool '${toolName}' removed output property '${propName}'`,
+        });
+      }
+    }
+  }
+
+  public static formatReport(diff: DiffResult): string {
+    if (diff.issues.length === 0) {
+      return "ok (contracts match baseline)";
+    }
+
+    const lines: string[] = [];
+
+    if (diff.breakingCount > 0) {
+      lines.push(`CONTRACT BREAKING CHANGES (${diff.breakingCount}):`);
+      for (const issue of diff.issues.filter((i) => i.severity === "breaking")) {
+        const pathSuffix = issue.path ? ` [${issue.path}]` : "";
+        lines.push(`  - [BREAKING] ${issue.tool}${pathSuffix}: ${issue.message}`);
+      }
+    }
+
+    if (diff.nonBreakingCount > 0) {
+      if (lines.length > 0) lines.push("");
+      lines.push(`Non-breaking changes (${diff.nonBreakingCount}):`);
+      for (const issue of diff.issues.filter((i) => i.severity === "non-breaking")) {
+        lines.push(`  - [INFO] ${issue.tool}: ${issue.message}`);
+      }
+    }
+
+    return lines.join("\n");
+  }
+}

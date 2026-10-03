@@ -1,0 +1,141 @@
+import { describe, expect, it } from "vitest";
+import { ContractDiff, ToolContract } from "../src/diff.js";
+
+describe("ContractDiff", () => {
+  const baseTools: ToolContract[] = [
+    {
+      name: "getUser",
+      description: "Gets a user by ID",
+      inputSchema: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          format: { type: "string", enum: ["json", "xml"] },
+        },
+        required: ["id"],
+      },
+      outputSchema: {
+        type: "object",
+        properties: {
+          id: { type: "string" },
+          name: { type: "string" },
+        },
+        required: ["id", "name"],
+      },
+    },
+  ];
+
+  it("reports compatible when contracts match exactly", () => {
+    const snapshot = ContractDiff.createSnapshot(baseTools);
+    const result = ContractDiff.compare(snapshot, baseTools);
+
+    expect(result.compatible).toBe(true);
+    expect(result.breakingCount).toBe(0);
+    expect(result.issues.length).toBe(0);
+  });
+
+  it("detects removed tool as breaking change", () => {
+    const snapshot = ContractDiff.createSnapshot(baseTools);
+    const result = ContractDiff.compare(snapshot, []); // tool removed
+
+    expect(result.compatible).toBe(false);
+    expect(result.breakingCount).toBe(1);
+    expect(result.issues[0].type).toBe("tool_removed");
+    expect(result.issues[0].severity).toBe("breaking");
+  });
+
+  it("detects added tool as non-breaking change", () => {
+    const snapshot = ContractDiff.createSnapshot(baseTools);
+    const extendedTools = [
+      ...baseTools,
+      {
+        name: "listUsers",
+        inputSchema: { type: "object" },
+      },
+    ];
+    const result = ContractDiff.compare(snapshot, extendedTools);
+
+    expect(result.compatible).toBe(true);
+    expect(result.breakingCount).toBe(0);
+    expect(result.nonBreakingCount).toBe(1);
+    expect(result.issues[0].type).toBe("tool_added");
+    expect(result.issues[0].severity).toBe("non-breaking");
+  });
+
+  it("detects new required input property as breaking change", () => {
+    const snapshot = ContractDiff.createSnapshot(baseTools);
+    const modifiedTools: ToolContract[] = [
+      {
+        name: "getUser",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            apiKey: { type: "string" },
+          },
+          required: ["id", "apiKey"], // apiKey newly required!
+        },
+      },
+    ];
+
+    const result = ContractDiff.compare(snapshot, modifiedTools);
+    expect(result.compatible).toBe(false);
+    expect(result.breakingCount).toBe(1);
+    expect(result.issues[0].type).toBe("input_required_added");
+    expect(result.issues[0].path).toBe("arguments.apiKey");
+  });
+
+  it("detects removed enum value from input as breaking change", () => {
+    const snapshot = ContractDiff.createSnapshot(baseTools);
+    const modifiedTools: ToolContract[] = [
+      {
+        name: "getUser",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            format: { type: "string", enum: ["json"] }, // "xml" removed!
+          },
+          required: ["id"],
+        },
+      },
+    ];
+
+    const result = ContractDiff.compare(snapshot, modifiedTools);
+    expect(result.compatible).toBe(false);
+    expect(result.breakingCount).toBe(1);
+    expect(result.issues[0].type).toBe("input_enum_removed");
+    expect(result.issues[0].message).toContain("xml");
+  });
+
+  it("detects removed output property as breaking change", () => {
+    const snapshot = ContractDiff.createSnapshot(baseTools);
+    const modifiedTools: ToolContract[] = [
+      {
+        name: "getUser",
+        inputSchema: baseTools[0].inputSchema,
+        outputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "string" }, // 'name' was removed!
+          },
+        },
+      },
+    ];
+
+    const result = ContractDiff.compare(snapshot, modifiedTools);
+    expect(result.compatible).toBe(false);
+    expect(result.breakingCount).toBe(1);
+    expect(result.issues[0].type).toBe("output_property_removed");
+    expect(result.issues[0].path).toBe("output.name");
+  });
+
+  it("formats readable breaking change reports", () => {
+    const snapshot = ContractDiff.createSnapshot(baseTools);
+    const result = ContractDiff.compare(snapshot, []);
+    const report = ContractDiff.formatReport(result);
+
+    expect(report).toContain("CONTRACT BREAKING CHANGES (1):");
+    expect(report).toContain("[BREAKING] getUser");
+  });
+});
