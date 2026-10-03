@@ -2,15 +2,27 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-Automated tool contract testing and JSON Schema validation for Model Context Protocol (MCP) servers in CI/CD.
+Automated tool contract testing, schema fuzzing, and breaking change detection for Model Context Protocol (MCP) servers in CI/CD.
 
-`mcp-contract-check` connects to your MCP server over stdio, discovers registered tools, executes test cases or schema-driven fixtures, and fails the build immediately if any tool response deviates from its declared JSON Schema.
+`mcp-contract-check` connects to your MCP server over stdio or remote SSE HTTP, discovers registered tools, executes test cases or synthesizes fuzzed inputs, and fails the build immediately if any tool response deviates from its declared JSON Schema.
+
+---
+
+## Features
+
+- **Standard I/O and Remote SSE**: Test local processes via `--command` or remote endpoints via `--url` and `--header`.
+- **Automatic Schema Fuzzer**: Synthesize valid arguments automatically from tool input schemas with `--fuzz`. No manual test fixtures required to get started.
+- **Breaking Change Detection**: Compare discovered tools and schemas against a baseline contract with `--baseline`. Catch removed tools, added required parameters, narrowed enums, and removed output properties before release.
+- **Contract Snapshotting**: Save discovered tool interfaces into versioned JSON contracts with `--save-contract`.
+- **Fixture-Driven Verification**: Test edge cases and expected error responses using JSON fixture files.
 
 ---
 
 ## Quickstart
 
-Add `mcp-contract-check` to your GitHub Actions workflow:
+Add `mcp-contract-check` to your GitHub Actions workflow.
+
+### 1. Stdio Server Check
 
 ```yaml
 name: MCP Contract Check
@@ -39,8 +51,45 @@ jobs:
         uses: gendjo-owlhead/mcp-contract-check@v1
         with:
           command: "node dist/server.js"
-          cases: "cases" # optional, defaults to cases/
-          license-key: ${{ secrets.MCP_LICENSE_KEY }} # optional for public repos, required for private repos
+          cases: "cases"
+          license-key: ${{ secrets.MCP_LICENSE_KEY }}
+```
+
+### 2. Automatic Schema Fuzzing (Zero Fixtures)
+
+```yaml
+      - name: Run Schema Fuzz Check
+        uses: gendjo-owlhead/mcp-contract-check@v1
+        with:
+          command: "node dist/server.js"
+          fuzz: "true"
+          license-key: ${{ secrets.MCP_LICENSE_KEY }}
+```
+
+### 3. Remote SSE Server Check
+
+```yaml
+      - name: Check Remote MCP Server
+        uses: gendjo-owlhead/mcp-contract-check@v1
+        with:
+          url: "https://mcp.internal.example.com/sse"
+          headers: |
+            Authorization: Bearer ${{ secrets.MCP_API_TOKEN }}
+            X-Environment: staging
+          fuzz: "true"
+          license-key: ${{ secrets.MCP_LICENSE_KEY }}
+```
+
+### 4. Breaking Change Detection in Pull Requests
+
+```yaml
+      - name: Check Backward Compatibility
+        uses: gendjo-owlhead/mcp-contract-check@v1
+        with:
+          command: "node dist/server.js"
+          baseline: "contracts/mcp-baseline.json"
+          save-contract: "contracts/mcp-current.json"
+          license-key: ${{ secrets.MCP_LICENSE_KEY }}
 ```
 
 ---
@@ -49,9 +98,17 @@ jobs:
 
 | Input | Description | Required | Default |
 |---|---|---|---|
-| `command` | The stdio server command to start your MCP server (e.g. `node server.js` or `python -m my_server`). | **Yes** | — |
+| `command` | The stdio server command to start your MCP server (e.g. `node server.js` or `python -m my_server`). | No* | — |
+| `url` | Remote MCP server SSE endpoint URL (e.g. `https://api.example.com/sse`). | No* | — |
+| `headers` | Custom HTTP headers for remote SSE transport (formatted as JSON or `key: value` lines). | No | — |
 | `cases` | Directory containing JSON test case fixtures for tool arguments. | No | `cases` |
+| `fuzz` | Automatically synthesize valid test arguments from tool input schemas. | No | `false` |
+| `baseline` | Path to a baseline contract JSON snapshot to check for breaking changes. | No | — |
+| `save-contract` | Path to save the discovered server tool contracts as a JSON snapshot file. | No | — |
 | `license-key` | License key required for private repositories. Not needed for public open-source repos. | No | — |
+| `license-server-url` | Custom license verification server URL. | No | `https://mcp-license-service.onrender.com` |
+
+\* Either `command` or `url` must be provided.
 
 ---
 
@@ -66,12 +123,45 @@ Create a directory (e.g. `cases/`) containing JSON files with fixtures for your 
     "arguments": {
       "a": 5,
       "b": 10
-    }
+    },
+    "expected": "success"
+  },
+  {
+    "tool": "calculate_sum",
+    "arguments": {
+      "a": "invalid-string"
+    },
+    "expected": "fail"
   }
 ]
 ```
 
-Tools without explicit fixtures are automatically invoked with `{}` to verify basic protocol compliance.
+- `tool`: Registered name of the tool to invoke.
+- `arguments`: Argument payload passed to the tool.
+- `expected`: Expected outcome (`"success"` or `"fail"`).
+
+---
+
+## CLI Usage
+
+You can also run the contract checker locally via the `mcp-check` CLI:
+
+```bash
+# Run against local stdio server
+npx @local/mcp-contract-check --command "node server.js" --cases cases
+
+# Run automatic schema fuzzing without writing fixtures
+npx @local/mcp-contract-check --command "node server.js" --fuzz
+
+# Save contract snapshot
+npx @local/mcp-contract-check --command "node server.js" --save-contract contracts/v1.json
+
+# Check against baseline for breaking changes
+npx @local/mcp-contract-check --command "node server.js" --baseline contracts/v1.json
+
+# Test remote SSE server with custom headers
+npx @local/mcp-contract-check --url "https://api.example.com/sse" -H "Authorization: Bearer token" --fuzz
+```
 
 ---
 
@@ -87,11 +177,12 @@ Tools without explicit fixtures are automatically invoked with `{}` to verify ba
 
 ## Monorepo Packages
 
-This repository contains the full MCP contract testing suite:
+This repository contains the complete MCP contract testing suite:
 
-- **[mcp-contract-check](./mcp-contract-check/)**: Core TypeScript CLI (`mcp-check`) for local command-line testing.
-- **[mcp-contract-check-action](./mcp-contract-check-action/)**: GitHub Action runner packaging the CLI for CI/CD.
+- **[mcp-contract-check](./mcp-contract-check/)**: Core TypeScript CLI (`mcp-check`) and validation engine.
+- **[mcp-contract-check-action](./mcp-contract-check-action/)**: GitHub Action runner packaging the CLI for CI/CD workflows.
 - **[mcp-check-demo](./mcp-check-demo/)**: Example MCP server showcasing both compliant and broken contract checks.
+- **[license-service](./license-service/)**: Stripe webhook and license validation microservice.
 
 ---
 

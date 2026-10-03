@@ -1,7 +1,7 @@
 {
   "name": "@local/mcp-contract-check",
   "version": "1.0.1",
-  "description": "MCP server contract checker",
+  "description": "Continuous contract testing, schema fuzzing, and breaking change detection for Model Context Protocol (MCP) servers",
   "type": "module",
   "main": "dist/index.js",
   "bin": {

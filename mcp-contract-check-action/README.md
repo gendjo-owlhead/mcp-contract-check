@@ -1,12 +1,19 @@
 # MCP Contract Check Action
 
-Fails a GitHub Actions build when an MCP tool response does not match its schema.
+Automated tool contract testing, schema fuzzing, and breaking change detection for Model Context Protocol (MCP) servers in GitHub Actions.
+
+Fails the build immediately when an MCP server tool response violates its declared JSON Schema or introduces backwards-incompatible API changes.
+
+---
 
 ## Usage
+
+### 1. Local Stdio Server
 
 ```yaml
 name: MCP Check
 on: [push, pull_request]
+
 jobs:
   check:
     runs-on: ubuntu-latest
@@ -15,16 +22,71 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+      - run: npm ci
       - uses: gendjo-owlhead/mcp-contract-check@v1
         with:
-          command: "node server.js"
+          command: "node dist/server.js"
           cases: "cases"
           license-key: ${{ secrets.MCP_LICENSE_KEY }}
 ```
 
+### 2. Automatic Schema Fuzzing (Zero Fixtures)
+
+```yaml
+      - uses: gendjo-owlhead/mcp-contract-check@v1
+        with:
+          command: "node dist/server.js"
+          fuzz: "true"
+          license-key: ${{ secrets.MCP_LICENSE_KEY }}
+```
+
+### 3. Remote Server-Sent Events (SSE) Endpoint
+
+```yaml
+      - uses: gendjo-owlhead/mcp-contract-check@v1
+        with:
+          url: "https://mcp-staging.internal/sse"
+          headers: |
+            Authorization: Bearer ${{ secrets.MCP_STAGING_TOKEN }}
+            X-Tenant-Id: test-suite
+          fuzz: "true"
+          license-key: ${{ secrets.MCP_LICENSE_KEY }}
+```
+
+### 4. Breaking Change Detection in Pull Requests
+
+```yaml
+      - uses: gendjo-owlhead/mcp-contract-check@v1
+        with:
+          command: "node dist/server.js"
+          baseline: "contracts/baseline.json"
+          save-contract: "contracts/current.json"
+          license-key: ${{ secrets.MCP_LICENSE_KEY }}
+```
+
+---
+
+## Action Inputs
+
+| Input | Description | Required | Default |
+|---|---|---|---|
+| `command` | The stdio server command to start your MCP server. | No* | — |
+| `url` | Remote MCP server SSE endpoint URL. | No* | — |
+| `headers` | Custom HTTP headers for remote SSE requests (formatted as JSON or `key: value` lines). | No | — |
+| `cases` | Directory containing JSON test case fixtures for tool arguments. | No | `cases` |
+| `fuzz` | Automatically synthesize valid test arguments from tool input schemas. | No | `false` |
+| `baseline` | Path to a baseline contract JSON snapshot to check for breaking changes. | No | — |
+| `save-contract` | Path to save the discovered server tool contracts as a JSON snapshot file. | No | — |
+| `license-key` | License key required for private repositories. Not needed for public open-source repos. | No | — |
+| `license-server-url` | Custom license verification server URL. | No | `https://mcp-license-service.onrender.com` |
+
+\* Either `command` or `url` must be provided.
+
+---
+
 ## Licensing
 
-Public repositories run completely free with no license key required.
-Paid license for private repos (€29/month + VAT): https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00
-
-For private repositories, provide your Stripe billing email, Subscription ID (`sub_...`), or Customer ID (`cus_...`) as `license-key`.
+- **Public Repositories**: Completely free. No license key or registration required.
+- **Private Repositories**: Requires an active license (€29/month + VAT).
+  - [Purchase License via Stripe](https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00)
+  - Provide your Stripe billing email, Subscription ID (`sub_...`), or Customer ID (`cus_...`) as the `license-key` input or repository secret.

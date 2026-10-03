@@ -1,5 +1,5 @@
 name: MCP contract check
-description: Fail the build when an MCP server's tool responses do not match their JSON Schema.
+description: Automated contract testing, schema fuzzing, and breaking change detection for Model Context Protocol (MCP) servers.
 author: gendzaj
 inputs:
   command:
