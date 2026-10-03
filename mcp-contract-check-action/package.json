@@ -1,6 +1,6 @@
 {
   "name": "mcp-contract-check-action",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "GitHub Action for Model Context Protocol (MCP) tool contract testing, schema fuzzing, and breaking change detection",
   "type": "module",
   "main": "dist/index.js",
