@@ -12,6 +12,9 @@ inputs:
   license-key:
     description: License key for private repositories
     required: false
+  license-server-url:
+    description: License verification server URL
+    required: false
 branding:
   icon: shield
   color: blue

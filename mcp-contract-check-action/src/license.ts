@@ -6,6 +6,7 @@ export interface LicenseCheckResult {
 export interface LicenseVerifyOptions {
   licenseKey: string;
   instanceName: string;
+  serverUrl?: string;
   fetchFn?: typeof fetch;
   timeoutMs?: number;
 }
@@ -16,6 +17,7 @@ export async function verifyLicense(
   const {
     licenseKey,
     instanceName,
+    serverUrl,
     fetchFn = fetch,
     timeoutMs = 10000,
   } = options;
@@ -28,8 +30,10 @@ export async function verifyLicense(
     };
   }
 
-  const validateUrl = "https://api.lemonsqueezy.com/v1/licenses/validate";
-  const activateUrl = "https://api.lemonsqueezy.com/v1/licenses/activate";
+  const defaultUrl = "https://api.lemonsqueezy.com";
+  const baseUrl = (serverUrl || process.env.MCP_LICENSE_SERVER_URL || defaultUrl).replace(/\/+$/, "");
+  const validateUrl = `${baseUrl}/v1/licenses/validate`;
+  const activateUrl = `${baseUrl}/v1/licenses/activate`;
 
   let validateRes: Response;
   try {

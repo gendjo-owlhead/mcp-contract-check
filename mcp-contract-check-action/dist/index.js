@@ -42035,6 +42035,7 @@ async function verifyLicense(options) {
   const {
     licenseKey,
     instanceName,
+    serverUrl,
     fetchFn = fetch,
     timeoutMs = 1e4
   } = options;
@@ -42045,8 +42046,10 @@ async function verifyLicense(options) {
       error: "License key cannot be empty"
     };
   }
-  const validateUrl = "https://api.lemonsqueezy.com/v1/licenses/validate";
-  const activateUrl = "https://api.lemonsqueezy.com/v1/licenses/activate";
+  const defaultUrl = "https://api.lemonsqueezy.com";
+  const baseUrl = (serverUrl || process.env.MCP_LICENSE_SERVER_URL || defaultUrl).replace(/\/+$/, "");
+  const validateUrl = `${baseUrl}/v1/licenses/validate`;
+  const activateUrl = `${baseUrl}/v1/licenses/activate`;
   let validateRes;
   try {
     validateRes = await fetchFn(validateUrl, {
@@ -42165,9 +42168,11 @@ async function run(customFetch) {
       }
       const repoPayload = github.context.payload?.repository;
       const instanceName = repoPayload?.full_name || `${github.context.repo.owner}/${github.context.repo.repo}`;
+      const serverUrl = core.getInput("license-server-url") || process.env.MCP_LICENSE_SERVER_URL;
       const licenseResult = await verifyLicense({
         licenseKey,
         instanceName,
+        serverUrl: serverUrl || void 0,
         fetchFn: customFetch,
         timeoutMs: 1e4
       });

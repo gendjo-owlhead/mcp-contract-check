@@ -40,9 +40,14 @@ export async function run(
         repoPayload?.full_name ||
         `${github.context.repo.owner}/${github.context.repo.repo}`;
 
+      const serverUrl =
+        core.getInput("license-server-url") ||
+        process.env.MCP_LICENSE_SERVER_URL;
+
       const licenseResult = await verifyLicense({
         licenseKey,
         instanceName,
+        serverUrl: serverUrl || undefined,
         fetchFn: customFetch,
         timeoutMs: 10000,
       });
