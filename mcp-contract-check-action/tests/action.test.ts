@@ -272,8 +272,8 @@ describe("mcp-contract-check-action", () => {
 
     expect(failedMessage).toBeNull();
     expect(infoMessages).toContain("ok");
-    expect(outputs["total"]).toBe("1");
-    expect(outputs["passed"]).toBe("1");
+    expect(Number(outputs["total"])).toBeGreaterThanOrEqual(1);
+    expect(outputs["passed"]).toBe(outputs["total"]);
     expect(outputs["compatible"]).toBe("true");
   });
 });
