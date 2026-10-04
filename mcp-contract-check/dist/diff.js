@@ -101,18 +101,48 @@ export class ContractDiff {
                     });
                 }
             }
-            // Check type changes (e.g. was string, now integer)
-            if (baseProp.type && currProp.type && baseProp.type !== currProp.type) {
-                // If types are different and not widened, it's breaking
-                issues.push({
-                    tool: toolName,
-                    type: "input_type_narrowed",
-                    severity: "breaking",
-                    path: `arguments.${propName}`,
-                    message: `Tool '${toolName}' input '${propName}' changed type from '${baseProp.type}' to '${currProp.type}'`,
-                });
+            // Check type changes
+            if (baseProp.type && currProp.type) {
+                const baseTypes = this.normalizeTypes(baseProp.type);
+                const currTypes = this.normalizeTypes(currProp.type);
+                const baseSet = new Set(baseTypes);
+                const currSet = new Set(currTypes);
+                const areEqual = baseTypes.length === currTypes.length &&
+                    baseTypes.every((val, idx) => val === currTypes[idx]);
+                if (!areEqual) {
+                    // Check if baseline types are all preserved in current types (widened)
+                    const allBasePreserved = baseTypes.every((t) => currSet.has(t));
+                    if (allBasePreserved && currTypes.length > baseTypes.length) {
+                        issues.push({
+                            tool: toolName,
+                            type: "input_type_widened",
+                            severity: "non-breaking",
+                            path: `arguments.${propName}`,
+                            message: `Tool '${toolName}' input '${propName}' widened accepted types to include: ${currTypes.filter((t) => !baseSet.has(t)).join(", ")}`,
+                        });
+                    }
+                    else {
+                        // Some baseline types were removed or changed -> breaking narrowing
+                        issues.push({
+                            tool: toolName,
+                            type: "input_type_narrowed",
+                            severity: "breaking",
+                            path: `arguments.${propName}`,
+                            message: `Tool '${toolName}' input '${propName}' changed type from '${baseTypes.join(" | ")}' to '${currTypes.join(" | ")}'`,
+                        });
+                    }
+                }
             }
         }
+    }
+    static normalizeTypes(t) {
+        if (Array.isArray(t)) {
+            return t.map(String).sort();
+        }
+        if (typeof t === "string") {
+            return [t];
+        }
+        return [];
     }
     static compareOutputSchemas(toolName, baselineSchema, currentSchema, issues = []) {
         if (!baselineSchema || !currentSchema) {

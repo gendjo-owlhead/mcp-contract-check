@@ -80,16 +80,45 @@ export function buildCasesForTools(
     const hasFixture = loadedFixtures.some((f) => f.tool === tool.name);
     if (!hasFixture) {
       if (options?.fuzz) {
-        const payload = (SchemaFuzzer.generateValidPayload(tool.inputSchema) || {}) as Record<
-          string,
-          unknown
-        >;
-        cases.push({
-          tool: tool.name,
-          arguments: payload,
-          expected: "success",
-          caseFile: "(fuzzed)",
-        });
+        const hasOptional = SchemaFuzzer.hasOptionalProperties(tool.inputSchema);
+        if (hasOptional) {
+          const minimalPayload = (SchemaFuzzer.generateValidPayload(
+            tool.inputSchema,
+            "param",
+            { requiredOnly: true }
+          ) || {}) as Record<string, unknown>;
+
+          cases.push({
+            tool: tool.name,
+            arguments: minimalPayload,
+            expected: "success",
+            caseFile: "(fuzzed: minimal)",
+          });
+
+          const fullPayload = (SchemaFuzzer.generateValidPayload(
+            tool.inputSchema,
+            "param",
+            { requiredOnly: false }
+          ) || {}) as Record<string, unknown>;
+
+          cases.push({
+            tool: tool.name,
+            arguments: fullPayload,
+            expected: "success",
+            caseFile: "(fuzzed: full)",
+          });
+        } else {
+          const payload = (SchemaFuzzer.generateValidPayload(tool.inputSchema) || {}) as Record<
+            string,
+            unknown
+          >;
+          cases.push({
+            tool: tool.name,
+            arguments: payload,
+            expected: "success",
+            caseFile: "(fuzzed)",
+          });
+        }
       } else {
         cases.push({
           tool: tool.name,

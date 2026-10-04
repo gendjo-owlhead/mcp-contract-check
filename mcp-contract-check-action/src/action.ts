@@ -87,20 +87,20 @@ export async function run(
           const days = trialResult.daysRemaining ?? 14;
           const checkoutUrl =
             trialResult.checkoutUrl ||
-            "https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00";
+            "https://buy.stripe.com/bJe7sMgEM0kA8j20Bs0oM01";
           if (typeof core.notice === "function") {
             core.notice(
-              `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Subscribe at ${checkoutUrl} to maintain uninterrupted CI.`
+              `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Upgrade at ${checkoutUrl} to maintain uninterrupted CI.`
             );
           } else {
             core.info(
-              `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Subscribe at ${checkoutUrl}`
+              `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Upgrade at ${checkoutUrl}`
             );
           }
         } else {
           core.setFailed(
             trialResult.error ||
-              "Private repos require an active license or trial: https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00"
+              "Private repos require an active license or trial: https://buy.stripe.com/bJe7sMgEM0kA8j20Bs0oM01"
           );
           return;
         }

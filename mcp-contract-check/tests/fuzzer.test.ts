@@ -87,4 +87,46 @@ describe("SchemaFuzzer", () => {
     expect(val).toBeLessThanOrEqual(-5);
     expect(validateJsonSchema(negSchema, val).valid).toBe(true);
   });
+
+  it("detects optional properties with hasOptionalProperties", () => {
+    const schemaWithOpt = {
+      type: "object",
+      properties: {
+        req: { type: "string" },
+        opt: { type: "number" },
+      },
+      required: ["req"],
+    };
+    expect(SchemaFuzzer.hasOptionalProperties(schemaWithOpt)).toBe(true);
+
+    const schemaOnlyReq = {
+      type: "object",
+      properties: {
+        req: { type: "string" },
+      },
+      required: ["req"],
+    };
+    expect(SchemaFuzzer.hasOptionalProperties(schemaOnlyReq)).toBe(false);
+  });
+
+  it("generates minimal required-only payloads when requested", () => {
+    const schema = {
+      type: "object",
+      properties: {
+        mandatory: { type: "string" },
+        optionalField: { type: "string" },
+      },
+      required: ["mandatory"],
+    };
+
+    const minimal = SchemaFuzzer.generateValidPayload(schema, "param", { requiredOnly: true }) as Record<string, unknown>;
+    expect(minimal).toHaveProperty("mandatory");
+    expect(minimal).not.toHaveProperty("optionalField");
+    expect(validateJsonSchema(schema, minimal).valid).toBe(true);
+
+    const full = SchemaFuzzer.generateValidPayload(schema, "param", { requiredOnly: false }) as Record<string, unknown>;
+    expect(full).toHaveProperty("mandatory");
+    expect(full).toHaveProperty("optionalField");
+    expect(validateJsonSchema(schema, full).valid).toBe(true);
+  });
 });

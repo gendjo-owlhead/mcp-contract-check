@@ -4,12 +4,24 @@
  */
 export class SchemaFuzzer {
     /**
+     * Checks whether the schema contains optional properties not listed in required.
+     */
+    static hasOptionalProperties(schema) {
+        if (!schema || typeof schema !== "object" || !schema.properties) {
+            return false;
+        }
+        const propKeys = Object.keys(schema.properties);
+        const requiredKeys = new Set(Array.isArray(schema.required) ? schema.required : []);
+        return propKeys.some((k) => !requiredKeys.has(k));
+    }
+    /**
      * Generates a valid payload matching a given JSON Schema.
      *
      * @param schema The JSON Schema definition (typically tool.inputSchema).
      * @param propName Optional property name for contextual dummy values.
+     * @param options Fuzzing options such as requiredOnly.
      */
-    static generateValidPayload(schema, propName = "param") {
+    static generateValidPayload(schema, propName = "param", options) {
         if (!schema || typeof schema !== "object" || Object.keys(schema).length === 0) {
             return {};
         }
@@ -27,10 +39,10 @@ export class SchemaFuzzer {
         }
         // anyOf / oneOf: use the first variant
         if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
-            return this.generateValidPayload(schema.oneOf[0], propName);
+            return this.generateValidPayload(schema.oneOf[0], propName, options);
         }
         if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
-            return this.generateValidPayload(schema.anyOf[0], propName);
+            return this.generateValidPayload(schema.anyOf[0], propName, options);
         }
         // If type is an array of types, take the first non-null type
         let rawType = schema.type;
@@ -58,9 +70,9 @@ export class SchemaFuzzer {
             case "boolean":
                 return true;
             case "array":
-                return this.generateArray(schema, propName);
+                return this.generateArray(schema, propName, options);
             case "object":
-                return this.generateObject(schema);
+                return this.generateObject(schema, options);
             case "null":
                 return null;
             default:
@@ -141,14 +153,14 @@ export class SchemaFuzzer {
         }
         return schema.type === "integer" ? Math.round(val) : val;
     }
-    static generateArray(schema, propName) {
+    static generateArray(schema, propName, options) {
         const itemsSchema = schema.items;
         const minItems = typeof schema.minItems === "number" ? schema.minItems : 1;
         const count = Math.max(minItems, 1);
         const result = [];
         for (let i = 0; i < count; i++) {
             if (itemsSchema) {
-                result.push(this.generateValidPayload(itemsSchema, `${propName}_item`));
+                result.push(this.generateValidPayload(itemsSchema, `${propName}_item`, options));
             }
             else {
                 result.push("item");
@@ -156,23 +168,25 @@ export class SchemaFuzzer {
         }
         return result;
     }
-    static generateObject(schema) {
+    static generateObject(schema, options) {
         const result = {};
         const properties = (schema.properties || {});
         const required = Array.isArray(schema.required) ? schema.required : [];
         // First generate all required properties
         for (const key of required) {
             if (properties[key]) {
-                result[key] = this.generateValidPayload(properties[key], key);
+                result[key] = this.generateValidPayload(properties[key], key, options);
             }
             else {
                 result[key] = "test-value";
             }
         }
-        // Also populate optional properties so the tool gets comprehensive inputs
-        for (const [key, propSchema] of Object.entries(properties)) {
-            if (!(key in result)) {
-                result[key] = this.generateValidPayload(propSchema, key);
+        // Populate optional properties unless requiredOnly is requested
+        if (!options?.requiredOnly) {
+            for (const [key, propSchema] of Object.entries(properties)) {
+                if (!(key in result)) {
+                    result[key] = this.generateValidPayload(propSchema, key, options);
+                }
             }
         }
         return result;

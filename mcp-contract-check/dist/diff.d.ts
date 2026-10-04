@@ -14,7 +14,7 @@ export interface ContractSnapshot {
     tools: ToolContract[];
 }
 export type DriftSeverity = "breaking" | "non-breaking";
-export type DriftType = "tool_removed" | "tool_added" | "input_required_added" | "input_enum_removed" | "input_type_narrowed" | "output_property_removed" | "output_required_added";
+export type DriftType = "tool_removed" | "tool_added" | "input_required_added" | "input_enum_removed" | "input_type_narrowed" | "input_type_widened" | "output_property_removed" | "output_required_added";
 export interface DriftIssue {
     tool: string;
     type: DriftType;
@@ -32,6 +32,7 @@ export declare class ContractDiff {
     static createSnapshot(tools: ToolContract[]): ContractSnapshot;
     static compare(baseline: ContractSnapshot, currentTools: ToolContract[]): DiffResult;
     private static compareInputSchemas;
+    private static normalizeTypes;
     private static compareOutputSchemas;
     static formatReport(diff: DiffResult): string;
 }

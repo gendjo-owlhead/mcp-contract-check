@@ -301,8 +301,10 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
         continue;
       }
 
-      // Check input schema before calling tool
-      if (toolDef.inputSchema) {
+      const isExpectFail = testCase.expected === "fail";
+
+      // Check input schema before calling tool (only enforce pre-flight if testCase expects success)
+      if (toolDef.inputSchema && !isExpectFail) {
         const inputValidation = validateJsonSchema(
           toolDef.inputSchema,
           testCase.arguments ?? {}
@@ -318,8 +320,6 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
           continue;
         }
       }
-
-      const isExpectFail = testCase.expected === "fail";
 
       try {
         const callResult = (await client.callTool(
@@ -380,12 +380,24 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
           const outputData = extractOutputData(callResult);
           const outputValidation = validateJsonSchema(toolDef.outputSchema, outputData);
 
-          if (!outputValidation.valid) {
+          // If unwrapped output validation failed, try validating against raw envelope
+          let isOutputValid = outputValidation.valid;
+          let outputErrors = outputValidation.errors;
+
+          if (!isOutputValid) {
+            const rawValidation = validateJsonSchema(toolDef.outputSchema, callResult);
+            if (rawValidation.valid) {
+              isOutputValid = true;
+              outputErrors = [];
+            }
+          }
+
+          if (!isOutputValid) {
             results.push({
               tool: testCase.tool,
               caseFile: testCase.caseFile,
               expected: "output matching schema",
-              actual: `output does not match schema: ${outputValidation.errors.join(", ")}`,
+              actual: `output does not match schema: ${outputErrors.join(", ")}`,
               passed: false,
             });
             continue;

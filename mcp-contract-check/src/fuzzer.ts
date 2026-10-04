@@ -3,16 +3,36 @@
  * Automatically synthesizes valid argument payloads from JSON Schema definitions.
  */
 
+export interface FuzzPayloadOptions {
+  requiredOnly?: boolean;
+}
+
 export class SchemaFuzzer {
+  /**
+   * Checks whether the schema contains optional properties not listed in required.
+   */
+  public static hasOptionalProperties(schema?: Record<string, unknown> | null): boolean {
+    if (!schema || typeof schema !== "object" || !schema.properties) {
+      return false;
+    }
+    const propKeys = Object.keys(schema.properties as object);
+    const requiredKeys = new Set(
+      Array.isArray(schema.required) ? (schema.required as string[]) : []
+    );
+    return propKeys.some((k) => !requiredKeys.has(k));
+  }
+
   /**
    * Generates a valid payload matching a given JSON Schema.
    *
    * @param schema The JSON Schema definition (typically tool.inputSchema).
    * @param propName Optional property name for contextual dummy values.
+   * @param options Fuzzing options such as requiredOnly.
    */
   public static generateValidPayload(
     schema?: Record<string, unknown> | null,
-    propName = "param"
+    propName = "param",
+    options?: FuzzPayloadOptions
   ): unknown {
     if (!schema || typeof schema !== "object" || Object.keys(schema).length === 0) {
       return {};
@@ -35,10 +55,10 @@ export class SchemaFuzzer {
 
     // anyOf / oneOf: use the first variant
     if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
-      return this.generateValidPayload(schema.oneOf[0] as Record<string, unknown>, propName);
+      return this.generateValidPayload(schema.oneOf[0] as Record<string, unknown>, propName, options);
     }
     if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
-      return this.generateValidPayload(schema.anyOf[0] as Record<string, unknown>, propName);
+      return this.generateValidPayload(schema.anyOf[0] as Record<string, unknown>, propName, options);
     }
 
     // If type is an array of types, take the first non-null type
@@ -70,10 +90,10 @@ export class SchemaFuzzer {
         return true;
 
       case "array":
-        return this.generateArray(schema, propName);
+        return this.generateArray(schema, propName, options);
 
       case "object":
-        return this.generateObject(schema);
+        return this.generateObject(schema, options);
 
       case "null":
         return null;
@@ -168,7 +188,8 @@ export class SchemaFuzzer {
 
   private static generateArray(
     schema: Record<string, unknown>,
-    propName: string
+    propName: string,
+    options?: FuzzPayloadOptions
   ): unknown[] {
     const itemsSchema = schema.items as Record<string, unknown> | undefined;
     const minItems = typeof schema.minItems === "number" ? schema.minItems : 1;
@@ -178,7 +199,7 @@ export class SchemaFuzzer {
 
     for (let i = 0; i < count; i++) {
       if (itemsSchema) {
-        result.push(this.generateValidPayload(itemsSchema, `${propName}_item`));
+        result.push(this.generateValidPayload(itemsSchema, `${propName}_item`, options));
       } else {
         result.push("item");
       }
@@ -188,7 +209,8 @@ export class SchemaFuzzer {
   }
 
   private static generateObject(
-    schema: Record<string, unknown>
+    schema: Record<string, unknown>,
+    options?: FuzzPayloadOptions
   ): Record<string, unknown> {
     const result: Record<string, unknown> = {};
     const properties = (schema.properties || {}) as Record<string, Record<string, unknown>>;
@@ -197,16 +219,18 @@ export class SchemaFuzzer {
     // First generate all required properties
     for (const key of required) {
       if (properties[key]) {
-        result[key] = this.generateValidPayload(properties[key], key);
+        result[key] = this.generateValidPayload(properties[key], key, options);
       } else {
         result[key] = "test-value";
       }
     }
 
-    // Also populate optional properties so the tool gets comprehensive inputs
-    for (const [key, propSchema] of Object.entries(properties)) {
-      if (!(key in result)) {
-        result[key] = this.generateValidPayload(propSchema, key);
+    // Populate optional properties unless requiredOnly is requested
+    if (!options?.requiredOnly) {
+      for (const [key, propSchema] of Object.entries(properties)) {
+        if (!(key in result)) {
+          result[key] = this.generateValidPayload(propSchema, key, options);
+        }
       }
     }
 

@@ -43652,16 +43652,43 @@ var ContractDiff = class {
           });
         }
       }
-      if (baseProp.type && currProp.type && baseProp.type !== currProp.type) {
-        issues.push({
-          tool: toolName,
-          type: "input_type_narrowed",
-          severity: "breaking",
-          path: `arguments.${propName}`,
-          message: `Tool '${toolName}' input '${propName}' changed type from '${baseProp.type}' to '${currProp.type}'`
-        });
+      if (baseProp.type && currProp.type) {
+        const baseTypes = this.normalizeTypes(baseProp.type);
+        const currTypes = this.normalizeTypes(currProp.type);
+        const baseSet = new Set(baseTypes);
+        const currSet = new Set(currTypes);
+        const areEqual = baseTypes.length === currTypes.length && baseTypes.every((val, idx) => val === currTypes[idx]);
+        if (!areEqual) {
+          const allBasePreserved = baseTypes.every((t) => currSet.has(t));
+          if (allBasePreserved && currTypes.length > baseTypes.length) {
+            issues.push({
+              tool: toolName,
+              type: "input_type_widened",
+              severity: "non-breaking",
+              path: `arguments.${propName}`,
+              message: `Tool '${toolName}' input '${propName}' widened accepted types to include: ${currTypes.filter((t) => !baseSet.has(t)).join(", ")}`
+            });
+          } else {
+            issues.push({
+              tool: toolName,
+              type: "input_type_narrowed",
+              severity: "breaking",
+              path: `arguments.${propName}`,
+              message: `Tool '${toolName}' input '${propName}' changed type from '${baseTypes.join(" | ")}' to '${currTypes.join(" | ")}'`
+            });
+          }
+        }
       }
     }
+  }
+  static normalizeTypes(t) {
+    if (Array.isArray(t)) {
+      return t.map(String).sort();
+    }
+    if (typeof t === "string") {
+      return [t];
+    }
+    return [];
   }
   static compareOutputSchemas(toolName, baselineSchema, currentSchema, issues = []) {
     if (!baselineSchema || !currentSchema) {
@@ -43712,12 +43739,24 @@ import path from "node:path";
 // ../mcp-contract-check/dist/fuzzer.js
 var SchemaFuzzer = class {
   /**
+   * Checks whether the schema contains optional properties not listed in required.
+   */
+  static hasOptionalProperties(schema) {
+    if (!schema || typeof schema !== "object" || !schema.properties) {
+      return false;
+    }
+    const propKeys = Object.keys(schema.properties);
+    const requiredKeys = new Set(Array.isArray(schema.required) ? schema.required : []);
+    return propKeys.some((k) => !requiredKeys.has(k));
+  }
+  /**
    * Generates a valid payload matching a given JSON Schema.
    *
    * @param schema The JSON Schema definition (typically tool.inputSchema).
    * @param propName Optional property name for contextual dummy values.
+   * @param options Fuzzing options such as requiredOnly.
    */
-  static generateValidPayload(schema, propName = "param") {
+  static generateValidPayload(schema, propName = "param", options) {
     if (!schema || typeof schema !== "object" || Object.keys(schema).length === 0) {
       return {};
     }
@@ -43731,10 +43770,10 @@ var SchemaFuzzer = class {
       return schema.default;
     }
     if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
-      return this.generateValidPayload(schema.oneOf[0], propName);
+      return this.generateValidPayload(schema.oneOf[0], propName, options);
     }
     if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
-      return this.generateValidPayload(schema.anyOf[0], propName);
+      return this.generateValidPayload(schema.anyOf[0], propName, options);
     }
     let rawType = schema.type;
     if (Array.isArray(rawType)) {
@@ -43758,9 +43797,9 @@ var SchemaFuzzer = class {
       case "boolean":
         return true;
       case "array":
-        return this.generateArray(schema, propName);
+        return this.generateArray(schema, propName, options);
       case "object":
-        return this.generateObject(schema);
+        return this.generateObject(schema, options);
       case "null":
         return null;
       default:
@@ -43836,34 +43875,36 @@ var SchemaFuzzer = class {
     }
     return schema.type === "integer" ? Math.round(val) : val;
   }
-  static generateArray(schema, propName) {
+  static generateArray(schema, propName, options) {
     const itemsSchema = schema.items;
     const minItems = typeof schema.minItems === "number" ? schema.minItems : 1;
     const count = Math.max(minItems, 1);
     const result = [];
     for (let i = 0; i < count; i++) {
       if (itemsSchema) {
-        result.push(this.generateValidPayload(itemsSchema, `${propName}_item`));
+        result.push(this.generateValidPayload(itemsSchema, `${propName}_item`, options));
       } else {
         result.push("item");
       }
     }
     return result;
   }
-  static generateObject(schema) {
+  static generateObject(schema, options) {
     const result = {};
     const properties = schema.properties || {};
     const required2 = Array.isArray(schema.required) ? schema.required : [];
     for (const key of required2) {
       if (properties[key]) {
-        result[key] = this.generateValidPayload(properties[key], key);
+        result[key] = this.generateValidPayload(properties[key], key, options);
       } else {
         result[key] = "test-value";
       }
     }
-    for (const [key, propSchema] of Object.entries(properties)) {
-      if (!(key in result)) {
-        result[key] = this.generateValidPayload(propSchema, key);
+    if (!options?.requiredOnly) {
+      for (const [key, propSchema] of Object.entries(properties)) {
+        if (!(key in result)) {
+          result[key] = this.generateValidPayload(propSchema, key, options);
+        }
       }
     }
     return result;
@@ -43930,13 +43971,31 @@ function buildCasesForTools(tools, loadedFixtures, options) {
     const hasFixture = loadedFixtures.some((f) => f.tool === tool.name);
     if (!hasFixture) {
       if (options?.fuzz) {
-        const payload = SchemaFuzzer.generateValidPayload(tool.inputSchema) || {};
-        cases.push({
-          tool: tool.name,
-          arguments: payload,
-          expected: "success",
-          caseFile: "(fuzzed)"
-        });
+        const hasOptional = SchemaFuzzer.hasOptionalProperties(tool.inputSchema);
+        if (hasOptional) {
+          const minimalPayload = SchemaFuzzer.generateValidPayload(tool.inputSchema, "param", { requiredOnly: true }) || {};
+          cases.push({
+            tool: tool.name,
+            arguments: minimalPayload,
+            expected: "success",
+            caseFile: "(fuzzed: minimal)"
+          });
+          const fullPayload = SchemaFuzzer.generateValidPayload(tool.inputSchema, "param", { requiredOnly: false }) || {};
+          cases.push({
+            tool: tool.name,
+            arguments: fullPayload,
+            expected: "success",
+            caseFile: "(fuzzed: full)"
+          });
+        } else {
+          const payload = SchemaFuzzer.generateValidPayload(tool.inputSchema) || {};
+          cases.push({
+            tool: tool.name,
+            arguments: payload,
+            expected: "success",
+            caseFile: "(fuzzed)"
+          });
+        }
       } else {
         cases.push({
           tool: tool.name,
@@ -44257,7 +44316,8 @@ Actual: failed to parse baseline JSON: ${message}`
         });
         continue;
       }
-      if (toolDef.inputSchema) {
+      const isExpectFail = testCase.expected === "fail";
+      if (toolDef.inputSchema && !isExpectFail) {
         const inputValidation = validateJsonSchema(toolDef.inputSchema, testCase.arguments ?? {});
         if (!inputValidation.valid) {
           results.push({
@@ -44270,7 +44330,6 @@ Actual: failed to parse baseline JSON: ${message}`
           continue;
         }
       }
-      const isExpectFail = testCase.expected === "fail";
       try {
         const callResult = await client.callTool({
           name: testCase.tool,
@@ -44311,12 +44370,21 @@ Actual: failed to parse baseline JSON: ${message}`
         if (toolDef.outputSchema) {
           const outputData = extractOutputData(callResult);
           const outputValidation = validateJsonSchema(toolDef.outputSchema, outputData);
-          if (!outputValidation.valid) {
+          let isOutputValid = outputValidation.valid;
+          let outputErrors = outputValidation.errors;
+          if (!isOutputValid) {
+            const rawValidation = validateJsonSchema(toolDef.outputSchema, callResult);
+            if (rawValidation.valid) {
+              isOutputValid = true;
+              outputErrors = [];
+            }
+          }
+          if (!isOutputValid) {
             results.push({
               tool: testCase.tool,
               caseFile: testCase.caseFile,
               expected: "output matching schema",
-              actual: `output does not match schema: ${outputValidation.errors.join(", ")}`,
+              actual: `output does not match schema: ${outputErrors.join(", ")}`,
               passed: false
             });
             continue;
@@ -44595,19 +44663,19 @@ async function run(customFetch) {
         });
         if (trialResult.valid && trialResult.trial) {
           const days = trialResult.daysRemaining ?? 14;
-          const checkoutUrl = trialResult.checkoutUrl || "https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00";
+          const checkoutUrl = trialResult.checkoutUrl || "https://buy.stripe.com/bJe7sMgEM0kA8j20Bs0oM01";
           if (typeof core.notice === "function") {
             core.notice(
-              `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Subscribe at ${checkoutUrl} to maintain uninterrupted CI.`
+              `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Upgrade at ${checkoutUrl} to maintain uninterrupted CI.`
             );
           } else {
             core.info(
-              `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Subscribe at ${checkoutUrl}`
+              `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Upgrade at ${checkoutUrl}`
             );
           }
         } else {
           core.setFailed(
-            trialResult.error || "Private repos require an active license or trial: https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00"
+            trialResult.error || "Private repos require an active license or trial: https://buy.stripe.com/bJe7sMgEM0kA8j20Bs0oM01"
           );
           return;
         }

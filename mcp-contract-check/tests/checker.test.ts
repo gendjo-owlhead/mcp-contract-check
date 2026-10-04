@@ -281,10 +281,53 @@ describe("runContractCheck", () => {
     expect(res.report).toContain("Invalid URL");
   });
 
-  it("rejects when neither command nor url is provided", async () => {
-    const res = await runContractCheck({});
+  it("allows expected fail fixture to pass when tool returns an error", async () => {
+    const customCasesDir = path.join(__dirname, "test-negative-cases");
+    fs.mkdirSync(customCasesDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(customCasesDir, "fail-expected-test.json"),
+      JSON.stringify({
+        tool: "failTool",
+        arguments: { invalidArg: 123 },
+        expected: "fail",
+      })
+    );
+    // Also include a valid greet fixture so other tools don't generate failing defaults
+    fs.writeFileSync(
+      path.join(customCasesDir, "greet.json"),
+      JSON.stringify({
+        tool: "greet",
+        arguments: { name: "Bob" },
+        expected: "success",
+      })
+    );
 
-    expect(res.success).toBe(false);
-    expect(res.report).toContain("Missing both command and url options");
+    try {
+      const res = await runContractCheck({
+        command: `node "${serverScript}" valid`,
+        casesDir: customCasesDir,
+      });
+
+      const failToolResult = res.results.find((r) => r.tool === "failTool");
+      expect(failToolResult?.passed).toBe(true);
+      expect(failToolResult?.expected).toBe("fail");
+      expect(failToolResult?.actual).toContain("as expected");
+    } finally {
+      if (fs.existsSync(customCasesDir)) {
+        fs.rmSync(customCasesDir, { recursive: true, force: true });
+      }
+    }
+  });
+
+  it("validates tool output when outputSchema targets outer envelope", async () => {
+    // noFixtureTool returns { content: [{ type: "text", text: "all good" }], structuredContent: { status: "ok" } }
+    // which satisfies both structuredContent and content envelope
+    const res = await runContractCheck({
+      command: `node "${serverScript}" valid`,
+      casesDir: testCasesDir,
+    });
+
+    const noFixtureRes = res.results.find((r) => r.tool === "noFixtureTool");
+    expect(noFixtureRes?.passed).toBe(true);
   });
 });

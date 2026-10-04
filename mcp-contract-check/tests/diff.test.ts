@@ -130,6 +130,106 @@ describe("ContractDiff", () => {
     expect(result.issues[0].path).toBe("output.name");
   });
 
+  it("handles multi-type array schemas without false positive breaking changes", () => {
+    const multiTypeTools: ToolContract[] = [
+      {
+        name: "queryData",
+        inputSchema: {
+          type: "object",
+          properties: {
+            filter: { type: ["string", "null"] },
+          },
+        },
+      },
+    ];
+
+    const snapshot = ContractDiff.createSnapshot(multiTypeTools);
+    // Compare with equivalent newly constructed tools having identical types
+    const sameTools: ToolContract[] = [
+      {
+        name: "queryData",
+        inputSchema: {
+          type: "object",
+          properties: {
+            filter: { type: ["string", "null"] },
+          },
+        },
+      },
+    ];
+
+    const result = ContractDiff.compare(snapshot, sameTools);
+    expect(result.compatible).toBe(true);
+    expect(result.breakingCount).toBe(0);
+    expect(result.issues.length).toBe(0);
+  });
+
+  it("detects type widening as non-breaking change", () => {
+    const stringTool: ToolContract[] = [
+      {
+        name: "fetchItem",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+          },
+        },
+      },
+    ];
+
+    const snapshot = ContractDiff.createSnapshot(stringTool);
+    // Widened to accept string or number
+    const widenedTool: ToolContract[] = [
+      {
+        name: "fetchItem",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: ["string", "number"] },
+          },
+        },
+      },
+    ];
+
+    const result = ContractDiff.compare(snapshot, widenedTool);
+    expect(result.compatible).toBe(true);
+    expect(result.breakingCount).toBe(0);
+    expect(result.nonBreakingCount).toBe(1);
+    expect(result.issues[0].type).toBe("input_type_widened");
+  });
+
+  it("detects type narrowing as breaking change", () => {
+    const unionTool: ToolContract[] = [
+      {
+        name: "fetchItem",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: ["string", "number"] },
+          },
+        },
+      },
+    ];
+
+    const snapshot = ContractDiff.createSnapshot(unionTool);
+    // Narrowed to only accept string
+    const narrowedTool: ToolContract[] = [
+      {
+        name: "fetchItem",
+        inputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+          },
+        },
+      },
+    ];
+
+    const result = ContractDiff.compare(snapshot, narrowedTool);
+    expect(result.compatible).toBe(false);
+    expect(result.breakingCount).toBe(1);
+    expect(result.issues[0].type).toBe("input_type_narrowed");
+  });
+
   it("formats readable breaking change reports", () => {
     const snapshot = ContractDiff.createSnapshot(baseTools);
     const result = ContractDiff.compare(snapshot, []);
