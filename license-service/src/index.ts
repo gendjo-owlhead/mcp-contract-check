@@ -20,6 +20,9 @@ app.get("/health", (_req: Request, res: Response) => {
 });
 
 export const CHECKOUT_URL = "https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00";
+export const LIFETIME_CHECKOUT_URL =
+  process.env.STRIPE_LIFETIME_CHECKOUT_URL ||
+  "https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00";
 export const TRIAL_DURATION_DAYS = 14;
 export const TRIAL_DURATION_MS = TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000;
 
@@ -68,14 +71,16 @@ app.post("/v1/licenses/trial", (req: Request, res: Response) => {
       daysRemaining,
       expiresAt: new Date(record.createdAt + TRIAL_DURATION_MS).toISOString(),
       checkoutUrl: CHECKOUT_URL,
+      lifetimeCheckoutUrl: LIFETIME_CHECKOUT_URL,
     });
   } else {
     res.json({
       valid: false,
       trial: false,
       trialExpired: true,
-      error: `14-day trial for '${instanceName}' expired. Subscribe to continue: ${CHECKOUT_URL}`,
+      error: `14-day trial for '${instanceName}' expired. Subscribe or get a lifetime pass to continue: ${CHECKOUT_URL}`,
       checkoutUrl: CHECKOUT_URL,
+      lifetimeCheckoutUrl: LIFETIME_CHECKOUT_URL,
     });
   }
 });
@@ -99,6 +104,8 @@ app.post("/v1/licenses/validate", async (req: Request, res: Response) => {
       valid: true,
       instance: instanceName ? { name: instanceName } : null,
       subscription: result.subscription,
+      lifetime: result.lifetime,
+      payment: result.payment,
     });
   } else {
     res.json({
@@ -127,6 +134,8 @@ app.post("/v1/licenses/activate", async (req: Request, res: Response) => {
       valid: true,
       instance: instanceName ? { name: instanceName } : null,
       subscription: result.subscription,
+      lifetime: result.lifetime,
+      payment: result.payment,
     });
   } else {
     res.json({

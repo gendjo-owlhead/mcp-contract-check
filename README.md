@@ -193,9 +193,10 @@ npx @local/mcp-contract-check --url "https://api.example.com/sse" -H "Authorizat
 - **Public Repositories**: **100% Free Forever**. No license key or registration required.
 - **Private Repositories**:
   - **14-Day Free Evaluation Trial**: Automatic in GitHub Actions. No credit card required. Private repositories run immediately and display remaining trial days in job notices.
-  - **Single Private Repo**: €29/month.
-  - **Subscribe**: [Buy License via Stripe](https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00)
-  - Add your Stripe billing email, Subscription ID (`sub_...`), or Customer ID (`cus_...`) to your repository secrets as `MCP_LICENSE_KEY`.
+  - **Lifetime Repo Pass (Most Popular)**: **€79 one-time payment**. Pay once, use forever for 1 private repository. Zero recurring charges.
+  - **Monthly Subscription**: **€29/month**. Cancel anytime.
+  - **Purchase License**: [Buy License via Stripe](https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00)
+  - **Supported License Keys**: Set your Stripe billing email, Subscription ID (`sub_...`), Payment ID (`pi_...`), Checkout Session ID (`cs_...`), or Customer ID (`cus_...`) in your GitHub repository secrets as `MCP_LICENSE_KEY`.
 
 ---
 

@@ -106,6 +106,139 @@ describe("verifyStripeSubscription", () => {
     expect(result.valid).toBe(true);
     expect(result.subscription?.id).toBe("sub_email_active");
   });
+
+  it("validates one-time lifetime payment by pi_ id", async () => {
+    const mockStripe = {
+      paymentIntents: {
+        retrieve: vi.fn().mockResolvedValue({
+          id: "pi_123lifetime",
+          status: "succeeded",
+          customer: "cus_lifetime",
+          amount: 7900,
+        }),
+      },
+    };
+
+    const result = await verifyStripeSubscription({
+      licenseKey: "pi_123lifetime",
+      stripeClient: mockStripe as any,
+    });
+
+    expect(result.valid).toBe(true);
+    expect(result.lifetime).toBe(true);
+    expect(result.payment?.id).toBe("pi_123lifetime");
+    expect(result.payment?.status).toBe("succeeded");
+    expect(result.payment?.amount).toBe(7900);
+  });
+
+  it("rejects non-succeeded payment intent by pi_ id", async () => {
+    const mockStripe = {
+      paymentIntents: {
+        retrieve: vi.fn().mockResolvedValue({
+          id: "pi_failed",
+          status: "requires_payment_method",
+        }),
+      },
+    };
+
+    const result = await verifyStripeSubscription({
+      licenseKey: "pi_failed",
+      stripeClient: mockStripe as any,
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain("requires_payment_method");
+  });
+
+  it("validates one-time lifetime payment by cs_ checkout session id", async () => {
+    const mockStripe = {
+      checkout: {
+        sessions: {
+          retrieve: vi.fn().mockResolvedValue({
+            id: "cs_session_456",
+            payment_status: "paid",
+            customer: "cus_session_user",
+            amount_total: 7900,
+          }),
+        },
+      },
+    };
+
+    const result = await verifyStripeSubscription({
+      licenseKey: "cs_session_456",
+      stripeClient: mockStripe as any,
+    });
+
+    expect(result.valid).toBe(true);
+    expect(result.lifetime).toBe(true);
+    expect(result.payment?.id).toBe("cs_session_456");
+    expect(result.payment?.status).toBe("paid");
+  });
+
+  it("validates one-time lifetime payment by cus_ id when no active subscription", async () => {
+    const mockStripe = {
+      subscriptions: {
+        list: vi.fn().mockResolvedValue({
+          data: [],
+        }),
+      },
+      paymentIntents: {
+        list: vi.fn().mockResolvedValue({
+          data: [
+            {
+              id: "pi_cust_lifetime",
+              status: "succeeded",
+              amount: 7900,
+            },
+          ],
+        }),
+      },
+    };
+
+    const result = await verifyStripeSubscription({
+      licenseKey: "cus_paid_once",
+      stripeClient: mockStripe as any,
+    });
+
+    expect(result.valid).toBe(true);
+    expect(result.lifetime).toBe(true);
+    expect(result.payment?.id).toBe("pi_cust_lifetime");
+  });
+
+  it("validates one-time lifetime payment by customer email when no active subscription", async () => {
+    const mockStripe = {
+      customers: {
+        list: vi.fn().mockResolvedValue({
+          data: [{ id: "cus_email_lifetime" }],
+        }),
+      },
+      subscriptions: {
+        list: vi.fn().mockResolvedValue({
+          data: [],
+        }),
+      },
+      paymentIntents: {
+        list: vi.fn().mockResolvedValue({
+          data: [
+            {
+              id: "pi_email_lifetime",
+              status: "succeeded",
+              amount: 7900,
+            },
+          ],
+        }),
+      },
+    };
+
+    const result = await verifyStripeSubscription({
+      licenseKey: "buyer@domain.com",
+      stripeClient: mockStripe as any,
+    });
+
+    expect(result.valid).toBe(true);
+    expect(result.lifetime).toBe(true);
+    expect(result.payment?.id).toBe("pi_email_lifetime");
+  });
 });
 
 describe("Express API Endpoints", () => {

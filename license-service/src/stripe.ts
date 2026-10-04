@@ -3,11 +3,18 @@ import Stripe from "stripe";
 export interface VerifyStripeLicenseResult {
   valid: boolean;
   error?: string;
+  lifetime?: boolean;
   subscription?: {
     id: string;
     status: string;
     customer: string;
     currentPeriodEnd: number;
+  };
+  payment?: {
+    id: string;
+    status: string;
+    customer?: string;
+    amount?: number;
   };
 }
 
@@ -58,7 +65,49 @@ export async function verifyStripeSubscription(
       };
     }
 
-    // 2. If key is a customer ID (cus_...)
+    // 2. If key is a PaymentIntent ID (pi_...) for one-time lifetime purchase
+    if (trimmedKey.startsWith("pi_")) {
+      const pi = await stripe.paymentIntents.retrieve(trimmedKey);
+      if (pi.status === "succeeded") {
+        return {
+          valid: true,
+          lifetime: true,
+          payment: {
+            id: pi.id,
+            status: pi.status,
+            customer: pi.customer ? String(pi.customer) : undefined,
+            amount: pi.amount,
+          },
+        };
+      }
+      return {
+        valid: false,
+        error: `PaymentIntent ${trimmedKey} has status '${pi.status}', expected 'succeeded'`,
+      };
+    }
+
+    // 3. If key is a Checkout Session ID (cs_...) for one-time lifetime purchase
+    if (trimmedKey.startsWith("cs_")) {
+      const session = await stripe.checkout.sessions.retrieve(trimmedKey);
+      if (session.payment_status === "paid") {
+        return {
+          valid: true,
+          lifetime: true,
+          payment: {
+            id: session.id,
+            status: session.payment_status,
+            customer: session.customer ? String(session.customer) : undefined,
+            amount: session.amount_total ?? undefined,
+          },
+        };
+      }
+      return {
+        valid: false,
+        error: `Checkout session ${trimmedKey} is unpaid (status: ${session.payment_status})`,
+      };
+    }
+
+    // 4. If key is a customer ID (cus_...)
     if (trimmedKey.startsWith("cus_")) {
       const subscriptions = await stripe.subscriptions.list({
         customer: trimmedKey,
@@ -78,13 +127,35 @@ export async function verifyStripeSubscription(
           },
         };
       }
+
+      // Check if customer completed a one-time lifetime payment
+      if (stripe.paymentIntents && typeof stripe.paymentIntents.list === "function") {
+        const payments = await stripe.paymentIntents.list({
+          customer: trimmedKey,
+          limit: 5,
+        });
+        const succeeded = payments.data.find((p) => p.status === "succeeded");
+        if (succeeded) {
+          return {
+            valid: true,
+            lifetime: true,
+            payment: {
+              id: succeeded.id,
+              status: succeeded.status,
+              customer: trimmedKey,
+              amount: succeeded.amount,
+            },
+          };
+        }
+      }
+
       return {
         valid: false,
-        error: `Customer ${trimmedKey} has no active subscription`,
+        error: `Customer ${trimmedKey} has no active subscription or lifetime purchase`,
       };
     }
 
-    // 3. If key is an email address
+    // 5. If key is an email address
     if (trimmedKey.includes("@")) {
       const customers = await stripe.customers.list({
         email: trimmedKey,
@@ -117,17 +188,38 @@ export async function verifyStripeSubscription(
             },
           };
         }
+
+        // Check for one-time lifetime purchase
+        if (stripe.paymentIntents && typeof stripe.paymentIntents.list === "function") {
+          const payments = await stripe.paymentIntents.list({
+            customer: customer.id,
+            limit: 5,
+          });
+          const succeeded = payments.data.find((p) => p.status === "succeeded");
+          if (succeeded) {
+            return {
+              valid: true,
+              lifetime: true,
+              payment: {
+                id: succeeded.id,
+                status: succeeded.status,
+                customer: customer.id,
+                amount: succeeded.amount,
+              },
+            };
+          }
+        }
       }
 
       return {
         valid: false,
-        error: `No active subscription found for email ${trimmedKey}`,
+        error: `No active subscription or lifetime purchase found for email ${trimmedKey}`,
       };
     }
 
     return {
       valid: false,
-      error: `Invalid license key format: expected Stripe Subscription ID (sub_...), Customer ID (cus_...), or billing email`,
+      error: `Invalid license key format: expected Stripe Subscription ID (sub_...), Payment ID (pi_...), Customer ID (cus_...), or billing email`,
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

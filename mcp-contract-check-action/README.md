@@ -108,6 +108,7 @@ jobs:
 - **Public Repositories**: Completely free forever. No license key or registration required.
 - **Private Repositories**:
   - **14-Day Free Evaluation Trial**: Automatic in GitHub Actions. No upfront credit card required.
-  - **Standard Subscription**: €29/month per private repository.
+  - **Lifetime Repo Pass (Most Popular)**: €79 one-time payment. Pay once, use forever for 1 private repository.
+  - **Standard Subscription**: €29/month per private repository. Cancel anytime.
   - [Purchase License via Stripe](https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00)
-  - Provide your Stripe billing email, Subscription ID (`sub_...`), or Customer ID (`cus_...`) as the `license-key` input or repository secret.
+  - Provide your Stripe billing email, Subscription ID (`sub_...`), Payment ID (`pi_...`), Checkout Session ID (`cs_...`), or Customer ID (`cus_...`) as the `license-key` input or repository secret.
