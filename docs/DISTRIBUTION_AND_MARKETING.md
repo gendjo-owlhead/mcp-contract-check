@@ -10,11 +10,15 @@ Submit pull requests to add `mcp-contract-check` under "Testing & Tooling" or "C
 
 1. **[punkpeye/awesome-mcp-servers](https://github.com/punkpeye/awesome-mcp-servers)**
    - Section: *Frameworks*
-   - Status: **PR Submitted**: [#15639](https://github.com/punkpeye/awesome-mcp-servers/pull/15639) (Fast-track agent review `🤖🤖🤖`)
+   - Status: **PR Submitted**: [#15639](https://github.com/punkpeye/awesome-mcp-servers/pull/15639)
    - Entry: `[gendjo-owlhead/mcp-contract-check](https://github.com/gendjo-owlhead/mcp-contract-check) 📇 🏠 🍎 🪟 🐧 - Automated contract testing, schema fuzzing, and breaking change detection for MCP servers in CI/CD.`
-2. **[wong2/awesome-mcp-servers](https://github.com/wong2/awesome-mcp-servers)**
-3. **[modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers)**
-4. **[glama-ai/mcp-registry](https://glama.ai/mcp)**
+2. **[punkpeye/awesome-mcp-devtools](https://github.com/punkpeye/awesome-mcp-devtools)**
+   - Section: *Testing Tools*
+   - Status: **PR Submitted**: [#358](https://github.com/punkpeye/awesome-mcp-devtools/pull/358)
+   - Entry: `[gendjo-owlhead/mcp-contract-check](https://github.com/gendjo-owlhead/mcp-contract-check) 📇 🤖 - Automated contract testing, schema fuzzing, and breaking change detection for MCP servers in CI/CD (GitHub Action & CLI).`
+3. **[wong2/awesome-mcp-servers](https://github.com/wong2/awesome-mcp-servers)**
+4. **[modelcontextprotocol/servers](https://github.com/modelcontextprotocol/servers)**
+5. **[glama-ai/mcp-registry](https://glama.ai/mcp)**
 
 ---
 
