@@ -6,3 +6,5 @@ artifacts/
 .forks/
 .env
 .env*
+*.sqlite*
+*.db*
