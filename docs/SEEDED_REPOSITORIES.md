@@ -9,6 +9,7 @@ This document coordinates outbound adoption PRs to top open-source Model Context
 | Repository | Stack | Transport | Command / Entrypoint | Status |
 |---|---|---|---|---|
 | `haris-musa/excel-mcp-server` | Python / uv | stdio | `uv run excel-mcp-server` | **PR Submitted**: [#173](https://github.com/haris-musa/excel-mcp-server/pull/173) |
+| `jparkerweb/mcp-sqlite` | JavaScript / Node | stdio | `node mcp-sqlite-server.js` | **PR Submitted**: [#9](https://github.com/jparkerweb/mcp-sqlite/pull/9) |
 | `modelcontextprotocol/servers` (sqlite) | TypeScript | stdio | `node packages/server-sqlite/dist/index.js test.db` | Ready to Submit |
 | `modelcontextprotocol/servers` (memory) | TypeScript | stdio | `node packages/server-memory/dist/index.js` | Ready to Submit |
 | `modelcontextprotocol/servers` (filesystem) | TypeScript | stdio | `node packages/server-filesystem/dist/index.js /tmp` | Ready to Submit |
