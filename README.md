@@ -107,6 +107,7 @@ jobs:
 | `save-contract` | Path to save the discovered server tool contracts as a JSON snapshot file. | No | — |
 | `license-key` | License key required for private repositories. Not needed for public open-source repos. | No | — |
 | `license-server-url` | Custom license verification server URL. | No | `https://mcp-license-service.onrender.com` |
+| `fail-open` | Allow CI checks to proceed with a warning if the license server is unreachable or experiences an outage. | No | `true` |
 
 \* Either `command` or `url` must be provided.
 
@@ -171,19 +172,19 @@ You can also run the contract checker locally via the `mcp-check` CLI:
 
 ```bash
 # Run against local stdio server
-npx @local/mcp-contract-check --command "node server.js" --cases cases
+npx mcp-contract-check --command "node server.js" --cases cases
 
 # Run automatic schema fuzzing without writing fixtures
-npx @local/mcp-contract-check --command "node server.js" --fuzz
+npx mcp-contract-check --command "node server.js" --fuzz
 
 # Save contract snapshot
-npx @local/mcp-contract-check --command "node server.js" --save-contract contracts/v1.json
+npx mcp-contract-check --command "node server.js" --save-contract contracts/v1.json
 
 # Check against baseline for breaking changes
-npx @local/mcp-contract-check --command "node server.js" --baseline contracts/v1.json
+npx mcp-contract-check --command "node server.js" --baseline contracts/v1.json
 
 # Test remote SSE server with custom headers
-npx @local/mcp-contract-check --url "https://api.example.com/sse" -H "Authorization: Bearer token" --fuzz
+npx mcp-contract-check --url "https://api.example.com/sse" -H "Authorization: Bearer token" --fuzz
 ```
 
 ---
@@ -193,9 +194,17 @@ npx @local/mcp-contract-check --url "https://api.example.com/sse" -H "Authorizat
 - **Public Repositories**: **100% Free Forever**. No license key or registration required.
 - **Private Repositories**:
   - **14-Day Free Evaluation Trial**: Automatic in GitHub Actions. No credit card required. Private repositories run immediately and display remaining trial days in job notices.
-  - **Lifetime Repo Pass (Most Popular)**: **€79 one-time payment**. [Buy Lifetime Pass](https://buy.stripe.com/bJe7sMgEM0kA8j20Bs0oM01). Pay once, use forever for 1 private repository. Zero recurring charges.
-  - **Monthly Subscription**: **€29/month**. [Subscribe Monthly](https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00). Cancel anytime.
-  - **Supported License Keys**: Set your Stripe billing email, Subscription ID (`sub_...`), Payment ID (`pi_...`), Checkout Session ID (`cs_...`), or Customer ID (`cus_...`) in your GitHub repository secrets as `MCP_LICENSE_KEY`.
+  - **Lifetime Access Pass**: **€10 one-time payment**. [Get Lifetime Access (€10)](https://buy.stripe.com/28E00k3S02sI9n6ac20oM04). Pay once, use forever across your private repositories. Zero recurring subscriptions.
+  - **Supported License Keys**: Set your Stripe billing email, Payment Intent ID (`pi_...`), Checkout Session ID (`cs_...`), or Customer ID (`cus_...`) in your GitHub repository secrets as `MCP_LICENSE_KEY`.
+
+---
+
+## Privacy & Data Security
+
+`mcp-contract-check` runs locally inside your GitHub Actions runner or terminal:
+- **Public Repositories**: Run completely offline without license server calls. No data is transmitted.
+- **Private Repositories**: Only the repository identifier (`owner/repo`) and the license key are sent to the verification endpoint. Server code, tool schemas, fixtures, and execution results remain entirely on your runner and are never transmitted.
+- **Fail-Open Protection**: If the license verification service is unreachable or encounters an outage, the action logs a warning and proceeds with testing. Your CI pipeline is never blocked by license server downtime.
 
 ---
 

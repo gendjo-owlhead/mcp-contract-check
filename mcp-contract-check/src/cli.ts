@@ -4,6 +4,7 @@ import { runContractCheck } from "./checker.js";
 function parseArgs(args: string[]): {
   command?: string;
   url?: string;
+  transport?: "auto" | "sse" | "streamable-http";
   headers?: Record<string, string>;
   cases?: string;
   fuzz?: boolean;
@@ -15,6 +16,7 @@ function parseArgs(args: string[]): {
   const result: {
     command?: string;
     url?: string;
+    transport?: "auto" | "sse" | "streamable-http";
     headers?: Record<string, string>;
     cases?: string;
     fuzz?: boolean;
@@ -40,6 +42,10 @@ function parseArgs(args: string[]): {
       result.url = args[++i];
     } else if (arg.startsWith("--url=")) {
       result.url = arg.slice("--url=".length);
+    } else if (arg === "--transport" || arg === "-t") {
+      result.transport = args[++i] as any;
+    } else if (arg.startsWith("--transport=")) {
+      result.transport = arg.slice("--transport=".length) as any;
     } else if (arg === "--header" || arg === "-H") {
       const headerStr = args[++i];
       if (headerStr) {
@@ -85,12 +91,13 @@ async function main(): Promise<void> {
     console.log(`mcp-check - Model Context Protocol tool contract testing
 
 Usage:
-  mcp-check (--command "<stdio server command>" | --url "<sse url>") [options]
+  mcp-check (--command "<stdio server command>" | --url "<remote url>") [options]
 
 Options:
   -c, --command <cmd>        The stdio server command to start your MCP server
-  -u, --url <url>            Remote MCP server SSE endpoint URL (e.g. http://localhost:8080/sse)
-  -H, --header <key:val>     HTTP header to pass with remote SSE requests (can be specified multiple times)
+  -u, --url <url>            Remote MCP server endpoint URL (e.g. http://localhost:8080/sse or http://localhost:8080/mcp)
+  -t, --transport <type>     Remote transport protocol: auto, sse, streamable-http (default: auto)
+  -H, --header <key:val>     HTTP header to pass with remote requests (can be specified multiple times)
   -d, --cases <dir>          Directory containing test case fixtures (default: "cases")
   -f, --fuzz                 Synthesize valid arguments from tool input schemas when fixtures are missing
   -b, --baseline <file>      Fail if server contracts introduce breaking changes against baseline JSON
@@ -108,13 +115,14 @@ Options:
 
   if (!parsed.command && !parsed.url) {
     console.error('Error: missing required target option. Specify either --command "<cmd>" or --url "<url>"');
-    console.error('Usage: mcp-check (--command "<stdio server command>" | --url "<sse url>") [options]');
+    console.error('Usage: mcp-check (--command "<stdio server command>" | --url "<remote url>") [options]');
     process.exit(1);
   }
 
   const result = await runContractCheck({
     command: parsed.command,
     url: parsed.url,
+    transport: parsed.transport,
     headers: parsed.headers,
     casesDir: parsed.cases ?? "cases",
     fuzz: Boolean(parsed.fuzz),

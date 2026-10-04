@@ -22,4 +22,18 @@ export declare class SchemaFuzzer {
     private static generateNumber;
     private static generateArray;
     private static generateObject;
+    /**
+     * Generates boundary value payloads (e.g. minimum, maximum, empty string, minItems)
+     */
+    static generateBoundaryPayloads(schema?: Record<string, unknown> | null): Array<{
+        payload: Record<string, unknown>;
+        label: string;
+    }>;
+    /**
+     * Generates invalid payloads violating schema constraints for negative testing.
+     */
+    static generateInvalidPayloads(schema?: Record<string, unknown> | null): Array<{
+        payload: Record<string, unknown>;
+        reason: string;
+    }>;
 }

@@ -78,7 +78,7 @@
 
       <div class="cli-banner">
         <span>$</span>
-        <code id="cliSnippet">npx @local/mcp-contract-check --command "node server.js" --fuzz</code>
+        <code id="cliSnippet">npx mcp-contract-check --command "node server.js" --fuzz</code>
         <button class="copy-mini-btn" data-copy-target="cliSnippet" title="Copy CLI Command">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
@@ -291,69 +291,37 @@
             </li>
             <li>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              Community support via GitHub
+              Zero configuration, runs out of the box
             </li>
           </ul>
           <a href="#quickstart" class="btn btn-outline">Start Free</a>
         </div>
 
-        <!-- Private Repo Monthly -->
-        <div class="pricing-card">
-          <div class="card-ribbon">14-Day Free Trial</div>
-          <div class="plan-name">Monthly Repo</div>
-          <div class="plan-desc">For active projects preferring a monthly subscription with cancellation anytime.</div>
-          <div class="plan-price">
-            <span class="amount">€29</span>
-            <span class="period">/ month</span>
-          </div>
-          <ul class="plan-features">
-            <li>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              <strong>14-Day Automatic Free Trial</strong> (no card needed)
-            </li>
-            <li>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              Unlimited CI test runs on private repo
-            </li>
-            <li>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              Automated PR contract compatibility guard
-            </li>
-            <li>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              Remote SSE transport testing & headers
-            </li>
-            <li>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              Stripe subscription with instant key
-            </li>
-          </ul>
-          <a href="https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00" class="btn btn-outline" target="_blank" rel="noopener">
-            Subscribe (€29/mo)
-          </a>
-        </div>
-
-        <!-- Lifetime Repo Pass (Most Popular) -->
+        <!-- Lifetime License (Launch Special) -->
         <div class="pricing-card lifetime">
-          <div class="card-ribbon emerald">Most Popular • Pay Once</div>
-          <div class="plan-name">Lifetime Repo Pass</div>
-          <div class="plan-desc">One-time payment for permanent CI/CD contract validation on one private repository.</div>
+          <div class="card-ribbon emerald">Early Supporter • Pay Once</div>
+          <div class="plan-name">Lifetime License</div>
+          <div class="plan-desc">Permanent CI/CD contract validation across all your private repositories.</div>
           <div class="plan-price">
-            <span class="amount">€79</span>
+            <span class="amount">€10</span>
             <span class="period">one-time</span>
           </div>
           <ul class="plan-features">
+            <li>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+              <strong>14-Day Free Evaluation Trial</strong> (no credit card)
+            </li>
             <li>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
               <strong>Pay once, use forever</strong> (zero recurring fees)
             </li>
             <li>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              Unlimited CI test runs on private repo
+              Unlimited CI test runs on private repos
             </li>
             <li>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              Full schema fuzzing & breaking change guard
+              Deep schema fuzzing, boundary tests & drift detection
             </li>
             <li>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
@@ -361,46 +329,11 @@
             </li>
             <li>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              All future updates & releases included
+              All future updates & CLI releases included
             </li>
           </ul>
-          <a href="https://buy.stripe.com/bJe7sMgEM0kA8j20Bs0oM01" class="btn btn-emerald" id="lifetime-checkout-link" target="_blank" rel="noopener">
-            Get Lifetime Access (€79)
-          </a>
-        </div>
-
-        <!-- Organization -->
-        <div class="pricing-card">
-          <div class="plan-name">Organization</div>
-          <div class="plan-desc">For enterprise teams maintaining multiple internal or customer-facing MCP servers.</div>
-          <div class="plan-price">
-            <span class="amount">€99</span>
-            <span class="period">/ month</span>
-          </div>
-          <ul class="plan-features">
-            <li>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              Unlimited private repositories in GitHub Org
-            </li>
-            <li>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              Single unified organization license key
-            </li>
-            <li>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              Custom contract reporting & compliance
-            </li>
-            <li>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              Priority email & Slack support
-            </li>
-            <li>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              Invoice billing available
-            </li>
-          </ul>
-          <a href="https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00" class="btn btn-outline" target="_blank" rel="noopener">
-            Get Organization License
+          <a href="https://buy.stripe.com/28E00k3S02sI9n6ac20oM04" class="btn btn-emerald" id="lifetime-checkout-link" target="_blank" rel="noopener">
+            Get Lifetime Access (€10)
           </a>
         </div>
       </div>

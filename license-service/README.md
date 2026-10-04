@@ -7,9 +7,9 @@ A lightweight Node.js/Express microservice that verifies active Stripe subscript
 ## Supported License Key Formats
 
 Users can supply any of the following as `license-key`:
-1. **Stripe Subscription ID**: `sub_1N...` (from customer receipt or Stripe Customer Portal)
-2. **Stripe Customer ID**: `cus_1N...`
-3. **Billing Email**: `developer@company.com`
+1. **Billing Email**: `developer@company.com` (entered during Stripe checkout)
+2. **Payment ID**: `pi_...` or Checkout Session ID `cs_...` (from Stripe receipt)
+3. **Customer ID**: `cus_...`
 
 ---
 

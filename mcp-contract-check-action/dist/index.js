@@ -2675,7 +2675,7 @@ var require_multipart = __commonJS({
       const self = this;
       let boundary;
       const limits = cfg.limits;
-      const isPartAFile = cfg.isPartAFile || ((fieldName, contentType, fileName) => contentType === "application/octet-stream" || fileName !== void 0);
+      const isPartAFile = cfg.isPartAFile || ((fieldName, contentType2, fileName) => contentType2 === "application/octet-stream" || fileName !== void 0);
       const parsedConType = cfg.parsedConType || [];
       const defCharset = cfg.defCharset || "utf8";
       const preservePath = cfg.preservePath;
@@ -5498,8 +5498,8 @@ Content-Type: ${value.type || "application/octet-stream"}\r
         async formData() {
           webidl.brandCheck(this, instance);
           throwIfAborted(this[kState]);
-          const contentType = this.headers.get("Content-Type");
-          if (/multipart\/form-data/.test(contentType)) {
+          const contentType2 = this.headers.get("Content-Type");
+          if (/multipart\/form-data/.test(contentType2)) {
             const headers = {};
             for (const [key, value] of this.headers)
               headers[key.toLowerCase()] = value;
@@ -5549,7 +5549,7 @@ Content-Type: ${value.type || "application/octet-stream"}\r
             busboy.end();
             await busboyResolve;
             return responseFormData;
-          } else if (/application\/x-www-form-urlencoded/.test(contentType)) {
+          } else if (/application\/x-www-form-urlencoded/.test(contentType2)) {
             let entries;
             try {
               let text = "";
@@ -5625,11 +5625,11 @@ Content-Type: ${value.type || "application/octet-stream"}\r
     }
     function bodyMimeType(object3) {
       const { headersList } = object3[kState];
-      const contentType = headersList.get("content-type");
-      if (contentType === null) {
+      const contentType2 = headersList.get("content-type");
+      if (contentType2 === null) {
         return "failure";
       }
-      return parseMIMEType(contentType);
+      return parseMIMEType(contentType2);
     }
     module.exports = {
       extractBody,
@@ -5787,10 +5787,10 @@ var require_request = __commonJS({
           if (!extractBody) {
             extractBody = require_body().extractBody;
           }
-          const [bodyStream, contentType] = extractBody(body);
+          const [bodyStream, contentType2] = extractBody(body);
           if (this.contentType == null) {
-            this.contentType = contentType;
-            this.headers += `content-type: ${contentType}\r
+            this.contentType = contentType2;
+            this.headers += `content-type: ${contentType2}\r
 `;
           }
           this.body = bodyStream.stream;
@@ -9246,7 +9246,7 @@ var require_readable = __commonJS({
       constructor({
         resume,
         abort,
-        contentType = "",
+        contentType: contentType2 = "",
         highWaterMark = 64 * 1024
         // Same as nodejs fs streams.
       }) {
@@ -9259,7 +9259,7 @@ var require_readable = __commonJS({
         this[kAbort] = abort;
         this[kConsume] = null;
         this[kBody] = null;
-        this[kContentType] = contentType;
+        this[kContentType] = contentType2;
         this[kReading] = false;
       }
       destroy(err) {
@@ -9485,7 +9485,7 @@ var require_util3 = __commonJS({
       ResponseStatusCodeError
     } = require_errors();
     var { toUSVString } = require_util();
-    async function getResolveErrorBodyCallback({ callback, body, contentType, statusCode, statusMessage, headers }) {
+    async function getResolveErrorBodyCallback({ callback, body, contentType: contentType2, statusCode, statusMessage, headers }) {
       assert2(body);
       let chunks = [];
       let limit = 0;
@@ -9497,17 +9497,17 @@ var require_util3 = __commonJS({
           break;
         }
       }
-      if (statusCode === 204 || !contentType || !chunks) {
+      if (statusCode === 204 || !contentType2 || !chunks) {
         process.nextTick(callback, new ResponseStatusCodeError(`Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ""}`, statusCode, headers));
         return;
       }
       try {
-        if (contentType.startsWith("application/json")) {
+        if (contentType2.startsWith("application/json")) {
           const payload = JSON.parse(toUSVString(Buffer.concat(chunks)));
           process.nextTick(callback, new ResponseStatusCodeError(`Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ""}`, statusCode, headers, payload));
           return;
         }
-        if (contentType.startsWith("text/")) {
+        if (contentType2.startsWith("text/")) {
           const payload = toUSVString(Buffer.concat(chunks));
           process.nextTick(callback, new ResponseStatusCodeError(`Response status code ${statusCode}${statusMessage ? `: ${statusMessage}` : ""}`, statusCode, headers, payload));
           return;
@@ -9646,8 +9646,8 @@ var require_api_request = __commonJS({
           return;
         }
         const parsedHeaders = responseHeaders === "raw" ? util.parseHeaders(rawHeaders) : headers;
-        const contentType = parsedHeaders["content-type"];
-        const body = new Readable({ resume, abort, contentType, highWaterMark });
+        const contentType2 = parsedHeaders["content-type"];
+        const body = new Readable({ resume, abort, contentType: contentType2, highWaterMark });
         this.callback = null;
         this.res = body;
         if (callback !== null) {
@@ -9655,7 +9655,7 @@ var require_api_request = __commonJS({
             this.runInAsyncScope(
               getResolveErrorBodyCallback,
               null,
-              { callback, body, contentType, statusCode, statusMessage, headers }
+              { callback, body, contentType: contentType2, statusCode, statusMessage, headers }
             );
           } else {
             this.runInAsyncScope(callback, null, null, {
@@ -9804,13 +9804,13 @@ var require_api_stream = __commonJS({
         let res;
         if (this.throwOnError && statusCode >= 400) {
           const parsedHeaders = responseHeaders === "raw" ? util.parseHeaders(rawHeaders) : headers;
-          const contentType = parsedHeaders["content-type"];
+          const contentType2 = parsedHeaders["content-type"];
           res = new PassThrough2();
           this.callback = null;
           this.runInAsyncScope(
             getResolveErrorBodyCallback,
             null,
-            { callback, body: res, contentType, statusCode, statusMessage, headers }
+            { callback, body: res, contentType: contentType2, statusCode, statusMessage, headers }
           );
         } else {
           if (factory === null) {
@@ -12376,7 +12376,7 @@ var require_request2 = __commonJS({
     var { kHeadersList, kConstruct } = require_symbols();
     var assert2 = __require("assert");
     var { getMaxListeners, setMaxListeners, getEventListeners, defaultMaxListeners } = __require("events");
-    var TransformStream = globalThis.TransformStream;
+    var TransformStream2 = globalThis.TransformStream;
     var kAbortController = Symbol("abortController");
     var requestFinalizer = new FinalizationRegistry(({ signal, abort }) => {
       signal.removeEventListener("abort", abort);
@@ -12623,13 +12623,13 @@ var require_request2 = __commonJS({
         }
         let initBody = null;
         if (init.body != null) {
-          const [extractedBody, contentType] = extractBody(
+          const [extractedBody, contentType2] = extractBody(
             init.body,
             request.keepalive
           );
           initBody = extractedBody;
-          if (contentType && !this[kHeaders][kHeadersList].contains("content-type")) {
-            this[kHeaders].append("content-type", contentType);
+          if (contentType2 && !this[kHeaders][kHeadersList].contains("content-type")) {
+            this[kHeaders].append("content-type", contentType2);
           }
         }
         const inputOrInitBody = initBody ?? inputBody;
@@ -12651,10 +12651,10 @@ var require_request2 = __commonJS({
               "Cannot construct a Request with a Request object that has already been used."
             );
           }
-          if (!TransformStream) {
-            TransformStream = __require("stream/web").TransformStream;
+          if (!TransformStream2) {
+            TransformStream2 = __require("stream/web").TransformStream;
           }
-          const identityTransform = new TransformStream();
+          const identityTransform = new TransformStream2();
           inputBody.stream.pipeThrough(identityTransform);
           finalBody = {
             source: inputBody.source,
@@ -13042,7 +13042,7 @@ var require_fetch = __commonJS({
     var { Readable, pipeline } = __require("stream");
     var { addAbortListener, isErrored, isReadable, nodeMajor, nodeMinor } = require_util();
     var { dataURLProcessor, serializeAMimeType } = require_dataURL();
-    var { TransformStream } = __require("stream/web");
+    var { TransformStream: TransformStream2 } = __require("stream/web");
     var { getGlobalDispatcher } = require_global2();
     var { webidl } = require_webidl();
     var { STATUS_CODES } = __require("http");
@@ -13460,7 +13460,7 @@ var require_fetch = __commonJS({
         const identityTransformAlgorithm = (chunk, controller) => {
           controller.enqueue(chunk);
         };
-        const transformStream = new TransformStream({
+        const transformStream = new TransformStream2({
           start() {
           },
           transform: identityTransformAlgorithm,
@@ -19811,10 +19811,10 @@ Support boolean input list: \`true | True | TRUE | false | False | FALSE\``);
       (0, command_1.issueCommand)("error", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
     exports.error = error2;
-    function warning(message, properties = {}) {
+    function warning2(message, properties = {}) {
       (0, command_1.issueCommand)("warning", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
-    exports.warning = warning;
+    exports.warning = warning2;
     function notice2(message, properties = {}) {
       (0, command_1.issueCommand)("notice", (0, utils_1.toCommandProperties)(properties), message instanceof Error ? message.toString() : message);
     }
@@ -20569,9 +20569,9 @@ var require_dist_node3 = __commonJS({
   }
 });
 
-// node_modules/wrappy/wrappy.js
+// ../node_modules/wrappy/wrappy.js
 var require_wrappy = __commonJS({
-  "node_modules/wrappy/wrappy.js"(exports, module) {
+  "../node_modules/wrappy/wrappy.js"(exports, module) {
     module.exports = wrappy;
     function wrappy(fn, cb) {
       if (fn && cb)
@@ -20600,9 +20600,9 @@ var require_wrappy = __commonJS({
   }
 });
 
-// node_modules/once/once.js
+// ../node_modules/once/once.js
 var require_once = __commonJS({
-  "node_modules/once/once.js"(exports, module) {
+  "../node_modules/once/once.js"(exports, module) {
     var wrappy = require_wrappy();
     module.exports = wrappy(once);
     module.exports.strict = wrappy(onceStrict);
@@ -20890,11 +20890,11 @@ var require_dist_node5 = __commonJS({
       });
     }
     async function getResponseData(response) {
-      const contentType = response.headers.get("content-type");
-      if (/application\/json/.test(contentType)) {
+      const contentType2 = response.headers.get("content-type");
+      if (/application\/json/.test(contentType2)) {
         return response.json().catch(() => response.text()).catch(() => "");
       }
-      if (!contentType || /^text\/|charset=utf-8$/.test(contentType)) {
+      if (!contentType2 || /^text\/|charset=utf-8$/.test(contentType2)) {
         return response.text();
       }
       return getBufferResponse(response);
@@ -31167,9 +31167,9 @@ var require_dist = __commonJS({
   }
 });
 
-// ../mcp-contract-check/node_modules/isexe/windows.js
+// ../node_modules/isexe/windows.js
 var require_windows = __commonJS({
-  "../mcp-contract-check/node_modules/isexe/windows.js"(exports, module) {
+  "../node_modules/isexe/windows.js"(exports, module) {
     module.exports = isexe;
     isexe.sync = sync;
     var fs3 = __require("fs");
@@ -31207,9 +31207,9 @@ var require_windows = __commonJS({
   }
 });
 
-// ../mcp-contract-check/node_modules/isexe/mode.js
+// ../node_modules/isexe/mode.js
 var require_mode = __commonJS({
-  "../mcp-contract-check/node_modules/isexe/mode.js"(exports, module) {
+  "../node_modules/isexe/mode.js"(exports, module) {
     module.exports = isexe;
     isexe.sync = sync;
     var fs3 = __require("fs");
@@ -31240,9 +31240,9 @@ var require_mode = __commonJS({
   }
 });
 
-// ../mcp-contract-check/node_modules/isexe/index.js
+// ../node_modules/isexe/index.js
 var require_isexe = __commonJS({
-  "../mcp-contract-check/node_modules/isexe/index.js"(exports, module) {
+  "../node_modules/isexe/index.js"(exports, module) {
     var fs3 = __require("fs");
     var core2;
     if (process.platform === "win32" || global.TESTING_WINDOWS) {
@@ -31295,9 +31295,9 @@ var require_isexe = __commonJS({
   }
 });
 
-// ../mcp-contract-check/node_modules/which/which.js
+// ../node_modules/which/which.js
 var require_which = __commonJS({
-  "../mcp-contract-check/node_modules/which/which.js"(exports, module) {
+  "../node_modules/which/which.js"(exports, module) {
     var isWindows = process.platform === "win32" || process.env.OSTYPE === "cygwin" || process.env.OSTYPE === "msys";
     var path3 = __require("path");
     var COLON = isWindows ? ";" : ":";
@@ -31391,9 +31391,9 @@ var require_which = __commonJS({
   }
 });
 
-// ../mcp-contract-check/node_modules/path-key/index.js
+// ../node_modules/path-key/index.js
 var require_path_key = __commonJS({
-  "../mcp-contract-check/node_modules/path-key/index.js"(exports, module) {
+  "../node_modules/path-key/index.js"(exports, module) {
     "use strict";
     var pathKey = (options = {}) => {
       const environment = options.env || process.env;
@@ -31408,9 +31408,9 @@ var require_path_key = __commonJS({
   }
 });
 
-// ../mcp-contract-check/node_modules/cross-spawn/lib/util/resolveCommand.js
+// ../node_modules/cross-spawn/lib/util/resolveCommand.js
 var require_resolveCommand = __commonJS({
-  "../mcp-contract-check/node_modules/cross-spawn/lib/util/resolveCommand.js"(exports, module) {
+  "../node_modules/cross-spawn/lib/util/resolveCommand.js"(exports, module) {
     "use strict";
     var path3 = __require("path");
     var which = require_which();
@@ -31450,9 +31450,9 @@ var require_resolveCommand = __commonJS({
   }
 });
 
-// ../mcp-contract-check/node_modules/cross-spawn/lib/util/escape.js
+// ../node_modules/cross-spawn/lib/util/escape.js
 var require_escape = __commonJS({
-  "../mcp-contract-check/node_modules/cross-spawn/lib/util/escape.js"(exports, module) {
+  "../node_modules/cross-spawn/lib/util/escape.js"(exports, module) {
     "use strict";
     var metaCharsRegExp = /([()\][%!^"`<>&|;, *?])/g;
     function escapeCommand(arg) {
@@ -31475,17 +31475,17 @@ var require_escape = __commonJS({
   }
 });
 
-// ../mcp-contract-check/node_modules/shebang-regex/index.js
+// ../node_modules/shebang-regex/index.js
 var require_shebang_regex = __commonJS({
-  "../mcp-contract-check/node_modules/shebang-regex/index.js"(exports, module) {
+  "../node_modules/shebang-regex/index.js"(exports, module) {
     "use strict";
     module.exports = /^#!(.*)/;
   }
 });
 
-// ../mcp-contract-check/node_modules/shebang-command/index.js
+// ../node_modules/shebang-command/index.js
 var require_shebang_command = __commonJS({
-  "../mcp-contract-check/node_modules/shebang-command/index.js"(exports, module) {
+  "../node_modules/shebang-command/index.js"(exports, module) {
     "use strict";
     var shebangRegex = require_shebang_regex();
     module.exports = (string4 = "") => {
@@ -31503,9 +31503,9 @@ var require_shebang_command = __commonJS({
   }
 });
 
-// ../mcp-contract-check/node_modules/cross-spawn/lib/util/readShebang.js
+// ../node_modules/cross-spawn/lib/util/readShebang.js
 var require_readShebang = __commonJS({
-  "../mcp-contract-check/node_modules/cross-spawn/lib/util/readShebang.js"(exports, module) {
+  "../node_modules/cross-spawn/lib/util/readShebang.js"(exports, module) {
     "use strict";
     var fs3 = __require("fs");
     var shebangCommand = require_shebang_command();
@@ -31525,9 +31525,9 @@ var require_readShebang = __commonJS({
   }
 });
 
-// ../mcp-contract-check/node_modules/cross-spawn/lib/parse.js
+// ../node_modules/cross-spawn/lib/parse.js
 var require_parse2 = __commonJS({
-  "../mcp-contract-check/node_modules/cross-spawn/lib/parse.js"(exports, module) {
+  "../node_modules/cross-spawn/lib/parse.js"(exports, module) {
     "use strict";
     var path3 = __require("path");
     var resolveCommand = require_resolveCommand();
@@ -31587,9 +31587,9 @@ var require_parse2 = __commonJS({
   }
 });
 
-// ../mcp-contract-check/node_modules/cross-spawn/lib/enoent.js
+// ../node_modules/cross-spawn/lib/enoent.js
 var require_enoent = __commonJS({
-  "../mcp-contract-check/node_modules/cross-spawn/lib/enoent.js"(exports, module) {
+  "../node_modules/cross-spawn/lib/enoent.js"(exports, module) {
     "use strict";
     var isWin = process.platform === "win32";
     function notFoundError(original, syscall) {
@@ -31637,9 +31637,9 @@ var require_enoent = __commonJS({
   }
 });
 
-// ../mcp-contract-check/node_modules/cross-spawn/index.js
+// ../node_modules/cross-spawn/index.js
 var require_cross_spawn = __commonJS({
-  "../mcp-contract-check/node_modules/cross-spawn/index.js"(exports, module) {
+  "../node_modules/cross-spawn/index.js"(exports, module) {
     "use strict";
     var cp = __require("child_process");
     var parse3 = require_parse2();
@@ -31661,6 +31661,110 @@ var require_cross_spawn = __commonJS({
     module.exports.sync = spawnSync;
     module.exports._parse = parse3;
     module.exports._enoent = enoent;
+  }
+});
+
+// ../node_modules/content-type/index.js
+var require_content_type = __commonJS({
+  "../node_modules/content-type/index.js"(exports) {
+    "use strict";
+    var PARAM_REGEXP = /; *([!#$%&'*+.^_`|~0-9A-Za-z-]+) *= *("(?:[\u000b\u0020\u0021\u0023-\u005b\u005d-\u007e\u0080-\u00ff]|\\[\u000b\u0020-\u00ff])*"|[!#$%&'*+.^_`|~0-9A-Za-z-]+) */g;
+    var TEXT_REGEXP = /^[\u000b\u0020-\u007e\u0080-\u00ff]+$/;
+    var TOKEN_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+    var QESC_REGEXP = /\\([\u000b\u0020-\u00ff])/g;
+    var QUOTE_REGEXP = /([\\"])/g;
+    var TYPE_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+\/[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+    exports.format = format;
+    exports.parse = parse3;
+    function format(obj) {
+      if (!obj || typeof obj !== "object") {
+        throw new TypeError("argument obj is required");
+      }
+      var parameters = obj.parameters;
+      var type = obj.type;
+      if (!type || !TYPE_REGEXP.test(type)) {
+        throw new TypeError("invalid type");
+      }
+      var string4 = type;
+      if (parameters && typeof parameters === "object") {
+        var param;
+        var params = Object.keys(parameters).sort();
+        for (var i = 0; i < params.length; i++) {
+          param = params[i];
+          if (!TOKEN_REGEXP.test(param)) {
+            throw new TypeError("invalid parameter name");
+          }
+          string4 += "; " + param + "=" + qstring(parameters[param]);
+        }
+      }
+      return string4;
+    }
+    function parse3(string4) {
+      if (!string4) {
+        throw new TypeError("argument string is required");
+      }
+      var header = typeof string4 === "object" ? getcontenttype(string4) : string4;
+      if (typeof header !== "string") {
+        throw new TypeError("argument string is required to be a string");
+      }
+      var index = header.indexOf(";");
+      var type = index !== -1 ? header.slice(0, index).trim() : header.trim();
+      if (!TYPE_REGEXP.test(type)) {
+        throw new TypeError("invalid media type");
+      }
+      var obj = new ContentType(type.toLowerCase());
+      if (index !== -1) {
+        var key;
+        var match;
+        var value;
+        PARAM_REGEXP.lastIndex = index;
+        while (match = PARAM_REGEXP.exec(header)) {
+          if (match.index !== index) {
+            throw new TypeError("invalid parameter format");
+          }
+          index += match[0].length;
+          key = match[1].toLowerCase();
+          value = match[2];
+          if (value.charCodeAt(0) === 34) {
+            value = value.slice(1, -1);
+            if (value.indexOf("\\") !== -1) {
+              value = value.replace(QESC_REGEXP, "$1");
+            }
+          }
+          obj.parameters[key] = value;
+        }
+        if (index !== header.length) {
+          throw new TypeError("invalid parameter format");
+        }
+      }
+      return obj;
+    }
+    function getcontenttype(obj) {
+      var header;
+      if (typeof obj.getHeader === "function") {
+        header = obj.getHeader("content-type");
+      } else if (typeof obj.headers === "object") {
+        header = obj.headers && obj.headers["content-type"];
+      }
+      if (typeof header !== "string") {
+        throw new TypeError("content-type header is missing from object");
+      }
+      return header;
+    }
+    function qstring(val) {
+      var str = String(val);
+      if (TOKEN_REGEXP.test(str)) {
+        return str;
+      }
+      if (str.length > 0 && !TEXT_REGEXP.test(str)) {
+        throw new TypeError("invalid parameter value");
+      }
+      return '"' + str.replace(QUOTE_REGEXP, "\\$1") + '"';
+    }
+    function ContentType(type) {
+      this.parameters = /* @__PURE__ */ Object.create(null);
+      this.type = type;
+    }
   }
 });
 
@@ -38717,6 +38821,7 @@ var InitializedNotificationSchema = NotificationSchema.extend({
   method: literal("notifications/initialized"),
   params: NotificationsParamsSchema.optional()
 });
+var isInitializedNotification = (value) => InitializedNotificationSchema.safeParse(value).success;
 var PingRequestSchema = RequestSchema.extend({
   method: literal("ping"),
   params: BaseRequestParamsSchema.optional()
@@ -43496,6 +43601,457 @@ var StdioClientTransport = class {
   }
 };
 
+// ../mcp-contract-check/node_modules/@modelcontextprotocol/sdk/dist/esm/shared/mediaType.js
+var import_content_type = __toESM(require_content_type(), 1);
+function mediaTypeEssence(header) {
+  if (!header) {
+    return void 0;
+  }
+  try {
+    return import_content_type.default.parse(header).type;
+  } catch {
+    const essence = (header.split(";", 1)[0] ?? "").trim().toLowerCase();
+    if (essence === "" || header.slice(essence.length).includes(",")) {
+      return void 0;
+    }
+    return essence;
+  }
+}
+
+// ../mcp-contract-check/node_modules/eventsource-parser/dist/stream.js
+var EventSourceParserStream = class extends TransformStream {
+  constructor({ onError, onRetry, onComment, maxBufferSize } = {}) {
+    let parser;
+    super({
+      start(controller) {
+        parser = createParser({
+          onEvent: (event) => {
+            controller.enqueue(event);
+          },
+          onError(error2) {
+            typeof onError == "function" && onError(error2), (onError === "terminate" || error2.type === "max-buffer-size-exceeded") && controller.error(error2);
+          },
+          onRetry,
+          onComment,
+          maxBufferSize
+        });
+      },
+      transform(chunk) {
+        parser.feed(chunk);
+      }
+    });
+  }
+};
+
+// ../mcp-contract-check/node_modules/@modelcontextprotocol/sdk/dist/esm/client/streamableHttp.js
+var DEFAULT_STREAMABLE_HTTP_RECONNECTION_OPTIONS = {
+  initialReconnectionDelay: 1e3,
+  maxReconnectionDelay: 3e4,
+  reconnectionDelayGrowFactor: 1.5,
+  maxRetries: 2
+};
+var StreamableHTTPError = class extends Error {
+  constructor(code, message) {
+    super(`Streamable HTTP error: ${message}`);
+    this.code = code;
+  }
+};
+var StreamableHTTPClientTransport = class {
+  constructor(url2, opts) {
+    this._hasCompletedAuthFlow = false;
+    this._url = url2;
+    this._resourceMetadataUrl = void 0;
+    this._scope = void 0;
+    this._requestInit = opts?.requestInit;
+    this._authProvider = opts?.authProvider;
+    this._fetch = opts?.fetch;
+    this._fetchWithInit = createFetchWithInit(opts?.fetch, opts?.requestInit);
+    this._followRedirects = opts?.redirectPolicy === "follow";
+    if (this._followRedirects) {
+      this._fetch = fetchLeavingRedirects(this._fetch);
+      this._fetchWithInit = fetchLeavingRedirects(this._fetchWithInit);
+    }
+    this._sessionId = opts?.sessionId;
+    this._reconnectionOptions = opts?.reconnectionOptions ?? DEFAULT_STREAMABLE_HTTP_RECONNECTION_OPTIONS;
+  }
+  /** Error text for a redirect `response` that was not followed, or `undefined` for any other response. */
+  _unfollowedRedirect(response, url2) {
+    const text = unfollowedRedirect(response, url2);
+    return text && !this._followRedirects ? `${text} (redirectPolicy: 'same-origin')` : text;
+  }
+  async _authThenStart() {
+    if (!this._authProvider) {
+      throw new UnauthorizedError("No auth provider");
+    }
+    let result;
+    try {
+      result = await auth(this._authProvider, {
+        serverUrl: this._url,
+        resourceMetadataUrl: this._resourceMetadataUrl,
+        scope: this._scope,
+        fetchFn: this._fetchWithInit
+      });
+    } catch (error2) {
+      this.onerror?.(error2);
+      throw error2;
+    }
+    if (result !== "AUTHORIZED") {
+      throw new UnauthorizedError();
+    }
+    return await this._startOrAuthSse({ resumptionToken: void 0 });
+  }
+  async _commonHeaders() {
+    const headers = {};
+    if (this._authProvider) {
+      const tokens = await this._authProvider.tokens();
+      if (tokens) {
+        headers["Authorization"] = `Bearer ${tokens.access_token}`;
+      }
+    }
+    if (this._sessionId) {
+      headers["mcp-session-id"] = this._sessionId;
+    }
+    if (this._protocolVersion) {
+      headers["mcp-protocol-version"] = this._protocolVersion;
+    }
+    const extraHeaders = normalizeHeaders(this._requestInit?.headers);
+    return new Headers({
+      ...headers,
+      ...extraHeaders
+    });
+  }
+  async _startOrAuthSse(options) {
+    const { resumptionToken } = options;
+    try {
+      const headers = await this._commonHeaders();
+      headers.set("Accept", "text/event-stream");
+      if (resumptionToken) {
+        headers.set("last-event-id", resumptionToken);
+      }
+      const fetchFn = this._fetch ?? fetch;
+      const init = { method: "GET", headers, signal: this._abortController?.signal };
+      let response = await fetchFn(this._url, this._followRedirects ? init : { ...init, redirect: "manual" });
+      const followed = this._followRedirects ? void 0 : followWithinOrigin(fetchFn, this._url, init, response);
+      if (followed) {
+        response = await followed;
+      }
+      if (!response.ok) {
+        await response.body?.cancel();
+        if (response.status === 401 && this._authProvider) {
+          return await this._authThenStart();
+        }
+        if (response.status === 405) {
+          return;
+        }
+        throw new StreamableHTTPError(response.status, `Failed to open SSE stream: ${this._unfollowedRedirect(response, this._url) ?? response.statusText}`);
+      }
+      this._handleSseStream(response.body, options, true);
+    } catch (error2) {
+      this.onerror?.(error2);
+      throw error2;
+    }
+  }
+  /**
+   * Calculates the next reconnection delay using  backoff algorithm
+   *
+   * @param attempt Current reconnection attempt count for the specific stream
+   * @returns Time to wait in milliseconds before next reconnection attempt
+   */
+  _getNextReconnectionDelay(attempt) {
+    if (this._serverRetryMs !== void 0) {
+      return this._serverRetryMs;
+    }
+    const initialDelay = this._reconnectionOptions.initialReconnectionDelay;
+    const growFactor = this._reconnectionOptions.reconnectionDelayGrowFactor;
+    const maxDelay = this._reconnectionOptions.maxReconnectionDelay;
+    return Math.min(initialDelay * Math.pow(growFactor, attempt), maxDelay);
+  }
+  /**
+   * Schedule a reconnection attempt using server-provided retry interval or backoff
+   *
+   * @param lastEventId The ID of the last received event for resumability
+   * @param attemptCount Current reconnection attempt count for this specific stream
+   */
+  _scheduleReconnection(options, attemptCount = 0) {
+    const maxRetries = this._reconnectionOptions.maxRetries;
+    if (attemptCount >= maxRetries) {
+      this.onerror?.(new Error(`Maximum reconnection attempts (${maxRetries}) exceeded.`));
+      return;
+    }
+    const delay = this._getNextReconnectionDelay(attemptCount);
+    this._reconnectionTimeout = setTimeout(() => {
+      this._startOrAuthSse(options).catch((error2) => {
+        this.onerror?.(new Error(`Failed to reconnect SSE stream: ${error2 instanceof Error ? error2.message : String(error2)}`));
+        this._scheduleReconnection(options, attemptCount + 1);
+      });
+    }, delay);
+  }
+  _handleSseStream(stream, options, isReconnectable) {
+    if (!stream) {
+      return;
+    }
+    const { onresumptiontoken, replayMessageId } = options;
+    let lastEventId;
+    let hasPrimingEvent = false;
+    let receivedResponse = false;
+    const processStream = async () => {
+      try {
+        const reader = stream.pipeThrough(new TextDecoderStream()).pipeThrough(new EventSourceParserStream({
+          onRetry: (retryMs) => {
+            this._serverRetryMs = retryMs;
+          }
+        })).getReader();
+        while (true) {
+          const { value: event, done } = await reader.read();
+          if (done) {
+            break;
+          }
+          if (event.id) {
+            lastEventId = event.id;
+            hasPrimingEvent = true;
+            onresumptiontoken?.(event.id);
+          }
+          if (!event.data) {
+            continue;
+          }
+          if (!event.event || event.event === "message") {
+            try {
+              const message = JSONRPCMessageSchema.parse(JSON.parse(event.data));
+              if (isJSONRPCResultResponse(message)) {
+                receivedResponse = true;
+                if (replayMessageId !== void 0) {
+                  message.id = replayMessageId;
+                }
+              }
+              this.onmessage?.(message);
+            } catch (error2) {
+              this.onerror?.(error2);
+            }
+          }
+        }
+        const canResume = isReconnectable || hasPrimingEvent;
+        const needsReconnect = canResume && !receivedResponse;
+        if (needsReconnect && this._abortController && !this._abortController.signal.aborted) {
+          this._scheduleReconnection({
+            resumptionToken: lastEventId,
+            onresumptiontoken,
+            replayMessageId
+          }, 0);
+        }
+      } catch (error2) {
+        this.onerror?.(new Error(`SSE stream disconnected: ${error2}`));
+        const canResume = isReconnectable || hasPrimingEvent;
+        const needsReconnect = canResume && !receivedResponse;
+        if (needsReconnect && this._abortController && !this._abortController.signal.aborted) {
+          try {
+            this._scheduleReconnection({
+              resumptionToken: lastEventId,
+              onresumptiontoken,
+              replayMessageId
+            }, 0);
+          } catch (error3) {
+            this.onerror?.(new Error(`Failed to reconnect: ${error3 instanceof Error ? error3.message : String(error3)}`));
+          }
+        }
+      }
+    };
+    processStream();
+  }
+  async start() {
+    if (this._abortController) {
+      throw new Error("StreamableHTTPClientTransport already started! If using Client class, note that connect() calls start() automatically.");
+    }
+    this._abortController = new AbortController();
+  }
+  /**
+   * Call this method after the user has finished authorizing via their user agent and is redirected back to the MCP client application. This will exchange the authorization code for an access token, enabling the next connection attempt to successfully auth.
+   */
+  async finishAuth(authorizationCode) {
+    if (!this._authProvider) {
+      throw new UnauthorizedError("No auth provider");
+    }
+    const result = await auth(this._authProvider, {
+      serverUrl: this._url,
+      authorizationCode,
+      resourceMetadataUrl: this._resourceMetadataUrl,
+      scope: this._scope,
+      fetchFn: this._fetchWithInit
+    });
+    if (result !== "AUTHORIZED") {
+      throw new UnauthorizedError("Failed to authorize");
+    }
+  }
+  async close() {
+    if (this._reconnectionTimeout) {
+      clearTimeout(this._reconnectionTimeout);
+      this._reconnectionTimeout = void 0;
+    }
+    this._abortController?.abort();
+    this.onclose?.();
+  }
+  async send(message, options) {
+    try {
+      const { resumptionToken, onresumptiontoken } = options || {};
+      if (resumptionToken) {
+        this._startOrAuthSse({ resumptionToken, replayMessageId: isJSONRPCRequest(message) ? message.id : void 0 }).catch((err) => this.onerror?.(err));
+        return;
+      }
+      const headers = await this._commonHeaders();
+      headers.set("content-type", "application/json");
+      headers.set("accept", "application/json, text/event-stream");
+      const init = {
+        ...this._requestInit,
+        method: "POST",
+        headers,
+        body: JSON.stringify(message),
+        signal: this._abortController?.signal
+      };
+      const response = await fetchWithinOrigin(this._fetch ?? fetch)(this._url, init);
+      const sessionId = response.headers.get("mcp-session-id");
+      if (sessionId) {
+        this._sessionId = sessionId;
+      }
+      if (!response.ok) {
+        const text = await response.text().catch(() => null);
+        if (response.status === 401 && this._authProvider) {
+          if (this._hasCompletedAuthFlow) {
+            throw new StreamableHTTPError(401, "Server returned 401 after successful authentication");
+          }
+          const { resourceMetadataUrl, scope } = extractWWWAuthenticateParams(response);
+          this._resourceMetadataUrl = resourceMetadataUrl;
+          this._scope = scope;
+          const result = await auth(this._authProvider, {
+            serverUrl: this._url,
+            resourceMetadataUrl: this._resourceMetadataUrl,
+            scope: this._scope,
+            fetchFn: this._fetchWithInit
+          });
+          if (result !== "AUTHORIZED") {
+            throw new UnauthorizedError();
+          }
+          this._hasCompletedAuthFlow = true;
+          return this.send(message);
+        }
+        if (response.status === 403 && this._authProvider) {
+          const { resourceMetadataUrl, scope, error: error2 } = extractWWWAuthenticateParams(response);
+          if (error2 === "insufficient_scope") {
+            const wwwAuthHeader = response.headers.get("WWW-Authenticate");
+            if (this._lastUpscopingHeader === wwwAuthHeader) {
+              throw new StreamableHTTPError(403, "Server returned 403 after trying upscoping");
+            }
+            if (scope) {
+              this._scope = scope;
+            }
+            if (resourceMetadataUrl) {
+              this._resourceMetadataUrl = resourceMetadataUrl;
+            }
+            this._lastUpscopingHeader = wwwAuthHeader ?? void 0;
+            const result = await auth(this._authProvider, {
+              serverUrl: this._url,
+              resourceMetadataUrl: this._resourceMetadataUrl,
+              scope: this._scope,
+              fetchFn: this._fetch
+            });
+            if (result !== "AUTHORIZED") {
+              throw new UnauthorizedError();
+            }
+            return this.send(message);
+          }
+        }
+        throw new StreamableHTTPError(response.status, `Error POSTing to endpoint: ${this._unfollowedRedirect(response, this._url) ?? text}`);
+      }
+      this._hasCompletedAuthFlow = false;
+      this._lastUpscopingHeader = void 0;
+      if (response.status === 202) {
+        await response.body?.cancel();
+        if (isInitializedNotification(message)) {
+          this._startOrAuthSse({ resumptionToken: void 0 }).catch((err) => this.onerror?.(err));
+        }
+        return;
+      }
+      const messages = Array.isArray(message) ? message : [message];
+      const hasRequests = messages.filter((msg) => "method" in msg && "id" in msg && msg.id !== void 0).length > 0;
+      const contentType2 = response.headers.get("content-type");
+      const responseMediaType = mediaTypeEssence(contentType2);
+      if (hasRequests) {
+        if (responseMediaType === "text/event-stream") {
+          this._handleSseStream(response.body, { onresumptiontoken }, false);
+        } else if (responseMediaType === "application/json") {
+          const data = await response.json();
+          const responseMessages = Array.isArray(data) ? data.map((msg) => JSONRPCMessageSchema.parse(msg)) : [JSONRPCMessageSchema.parse(data)];
+          for (const msg of responseMessages) {
+            this.onmessage?.(msg);
+          }
+        } else {
+          await response.body?.cancel();
+          throw new StreamableHTTPError(-1, `Unexpected content type: ${contentType2}`);
+        }
+      } else {
+        await response.body?.cancel();
+      }
+    } catch (error2) {
+      this.onerror?.(error2);
+      throw error2;
+    }
+  }
+  get sessionId() {
+    return this._sessionId;
+  }
+  /**
+   * Terminates the current session by sending a DELETE request to the server.
+   *
+   * Clients that no longer need a particular session
+   * (e.g., because the user is leaving the client application) SHOULD send an
+   * HTTP DELETE to the MCP endpoint with the Mcp-Session-Id header to explicitly
+   * terminate the session.
+   *
+   * The server MAY respond with HTTP 405 Method Not Allowed, indicating that
+   * the server does not allow clients to terminate sessions.
+   */
+  async terminateSession() {
+    if (!this._sessionId) {
+      return;
+    }
+    try {
+      const headers = await this._commonHeaders();
+      const init = {
+        ...this._requestInit,
+        method: "DELETE",
+        headers,
+        signal: this._abortController?.signal
+      };
+      const response = await fetchWithinOrigin(this._fetch ?? fetch)(this._url, init);
+      await response.body?.cancel();
+      if (!response.ok && response.status !== 405) {
+        throw new StreamableHTTPError(response.status, `Failed to terminate session: ${this._unfollowedRedirect(response, this._url) ?? response.statusText}`);
+      }
+      this._sessionId = void 0;
+    } catch (error2) {
+      this.onerror?.(error2);
+      throw error2;
+    }
+  }
+  setProtocolVersion(version2) {
+    this._protocolVersion = version2;
+  }
+  get protocolVersion() {
+    return this._protocolVersion;
+  }
+  /**
+   * Resume an SSE stream from a previous event ID.
+   * Opens a GET SSE connection with Last-Event-ID header to replay missed events.
+   *
+   * @param lastEventId The event ID to resume from
+   * @param options Optional callback to receive new resumption tokens
+   */
+  async resumeStream(lastEventId, options) {
+    await this._startOrAuthSse({
+      resumptionToken: lastEventId,
+      onresumptiontoken: options?.onresumptiontoken
+    });
+  }
+};
+
 // ../mcp-contract-check/dist/command-parser.js
 function parseCommandLine(commandStr) {
   const trimmed = commandStr.trim();
@@ -43602,6 +44158,14 @@ var ContractDiff = class {
       const currentTool = currentToolMap.get(name);
       if (!currentTool) {
         continue;
+      }
+      if (baselineTool.description !== void 0 && currentTool.description !== void 0 && baselineTool.description !== currentTool.description) {
+        issues.push({
+          tool: name,
+          type: "description_changed",
+          severity: "non-breaking",
+          message: `Tool '${name}' description changed (model instructions drifted)`
+        });
       }
       this.compareInputSchemas(name, baselineTool.inputSchema, currentTool.inputSchema, issues);
       this.compareOutputSchemas(name, baselineTool.outputSchema, currentTool.outputSchema, issues);
@@ -43909,6 +44473,149 @@ var SchemaFuzzer = class {
     }
     return result;
   }
+  /**
+   * Generates boundary value payloads (e.g. minimum, maximum, empty string, minItems)
+   */
+  static generateBoundaryPayloads(schema) {
+    if (!schema || typeof schema !== "object" || !schema.properties) {
+      return [];
+    }
+    const properties = schema.properties || {};
+    const baseValid = this.generateValidPayload(schema) || {};
+    const boundaries = [];
+    for (const [key, propSchema] of Object.entries(properties)) {
+      if (!propSchema || typeof propSchema !== "object")
+        continue;
+      const rawType = propSchema.type;
+      if (rawType === "integer" || rawType === "number") {
+        if (typeof propSchema.minimum === "number") {
+          boundaries.push({
+            payload: { ...baseValid, [key]: propSchema.minimum },
+            label: `boundary: ${key} = minimum (${propSchema.minimum})`
+          });
+        }
+        if (typeof propSchema.maximum === "number") {
+          boundaries.push({
+            payload: { ...baseValid, [key]: propSchema.maximum },
+            label: `boundary: ${key} = maximum (${propSchema.maximum})`
+          });
+        }
+        if (typeof propSchema.exclusiveMinimum === "number") {
+          const val = propSchema.exclusiveMinimum + (rawType === "integer" ? 1 : 1e-3);
+          boundaries.push({
+            payload: { ...baseValid, [key]: val },
+            label: `boundary: ${key} = exclusiveMinimum + 1 (${val})`
+          });
+        }
+        if (typeof propSchema.exclusiveMaximum === "number") {
+          const val = propSchema.exclusiveMaximum - (rawType === "integer" ? 1 : 1e-3);
+          boundaries.push({
+            payload: { ...baseValid, [key]: val },
+            label: `boundary: ${key} = exclusiveMaximum - 1 (${val})`
+          });
+        }
+      } else if (rawType === "string") {
+        const minLen = typeof propSchema.minLength === "number" ? propSchema.minLength : 0;
+        if (minLen === 0) {
+          boundaries.push({
+            payload: { ...baseValid, [key]: "" },
+            label: `boundary: ${key} = empty string`
+          });
+        } else {
+          boundaries.push({
+            payload: { ...baseValid, [key]: "a".repeat(minLen) },
+            label: `boundary: ${key} = minLength (${minLen})`
+          });
+        }
+        if (typeof propSchema.maxLength === "number" && propSchema.maxLength < 1e3) {
+          boundaries.push({
+            payload: { ...baseValid, [key]: "a".repeat(propSchema.maxLength) },
+            label: `boundary: ${key} = maxLength (${propSchema.maxLength})`
+          });
+        }
+      } else if (rawType === "array") {
+        const minItems = typeof propSchema.minItems === "number" ? propSchema.minItems : 0;
+        if (minItems === 0) {
+          boundaries.push({
+            payload: { ...baseValid, [key]: [] },
+            label: `boundary: ${key} = empty array`
+          });
+        }
+      }
+    }
+    return boundaries;
+  }
+  /**
+   * Generates invalid payloads violating schema constraints for negative testing.
+   */
+  static generateInvalidPayloads(schema) {
+    if (!schema || typeof schema !== "object" || !schema.properties) {
+      return [];
+    }
+    const properties = schema.properties || {};
+    const required2 = Array.isArray(schema.required) ? schema.required : [];
+    const baseValid = this.generateValidPayload(schema) || {};
+    const invalidCases = [];
+    for (const reqKey of required2) {
+      const copy = { ...baseValid };
+      delete copy[reqKey];
+      invalidCases.push({
+        payload: copy,
+        reason: `missing required property '${reqKey}'`
+      });
+    }
+    for (const [key, propSchema] of Object.entries(properties)) {
+      if (!propSchema || typeof propSchema !== "object")
+        continue;
+      const rawType = propSchema.type;
+      if (rawType === "integer" || rawType === "number") {
+        invalidCases.push({
+          payload: { ...baseValid, [key]: "invalid_string_instead_of_number" },
+          reason: `invalid type for '${key}' (string instead of number)`
+        });
+        if (typeof propSchema.minimum === "number") {
+          invalidCases.push({
+            payload: { ...baseValid, [key]: propSchema.minimum - 1 },
+            reason: `'${key}' below minimum (${propSchema.minimum - 1} < ${propSchema.minimum})`
+          });
+        }
+        if (typeof propSchema.maximum === "number") {
+          invalidCases.push({
+            payload: { ...baseValid, [key]: propSchema.maximum + 1 },
+            reason: `'${key}' above maximum (${propSchema.maximum + 1} > ${propSchema.maximum})`
+          });
+        }
+      } else if (rawType === "string") {
+        invalidCases.push({
+          payload: { ...baseValid, [key]: 12345 },
+          reason: `invalid type for '${key}' (number instead of string)`
+        });
+        if (typeof propSchema.minLength === "number" && propSchema.minLength > 0) {
+          invalidCases.push({
+            payload: { ...baseValid, [key]: "" },
+            reason: `'${key}' string length 0 violates minLength ${propSchema.minLength}`
+          });
+        }
+      } else if (rawType === "boolean") {
+        invalidCases.push({
+          payload: { ...baseValid, [key]: "not-a-boolean" },
+          reason: `invalid type for '${key}' (string instead of boolean)`
+        });
+      } else if (rawType === "array") {
+        invalidCases.push({
+          payload: { ...baseValid, [key]: "not-an-array" },
+          reason: `invalid type for '${key}' (string instead of array)`
+        });
+      }
+      if (Array.isArray(propSchema.enum) && propSchema.enum.length > 0) {
+        invalidCases.push({
+          payload: { ...baseValid, [key]: "__INVALID_ENUM_VALUE__" },
+          reason: `'${key}' has invalid enum value '__INVALID_ENUM_VALUE__'`
+        });
+      }
+    }
+    return invalidCases;
+  }
 };
 
 // ../mcp-contract-check/dist/fixtures.js
@@ -43996,6 +44703,15 @@ function buildCasesForTools(tools, loadedFixtures, options) {
             caseFile: "(fuzzed)"
           });
         }
+        const boundaries = SchemaFuzzer.generateBoundaryPayloads(tool.inputSchema);
+        for (const b of boundaries) {
+          cases.push({
+            tool: tool.name,
+            arguments: b.payload,
+            expected: "success",
+            caseFile: `(fuzzed: ${b.label})`
+          });
+        }
       } else {
         cases.push({
           tool: tool.name,
@@ -44080,6 +44796,7 @@ async function runContractCheck(options) {
   let diffResult;
   let transport;
   let getStderrLog = () => "";
+  let useStreamableHttp = false;
   if (options.url) {
     let urlObj;
     try {
@@ -44105,9 +44822,17 @@ Expected: valid server URL
 Actual: Invalid URL: ${options.url}`
       };
     }
-    transport = new SSEClientTransport(urlObj, {
-      requestInit: options.headers ? { headers: options.headers } : void 0
-    });
+    const transportType = options.transport || "auto";
+    useStreamableHttp = transportType === "streamable-http" || transportType === "auto" && !urlObj.pathname.endsWith("/sse");
+    if (useStreamableHttp) {
+      transport = new StreamableHTTPClientTransport(urlObj, {
+        requestInit: options.headers ? { headers: options.headers } : void 0
+      });
+    } else {
+      transport = new SSEClientTransport(urlObj, {
+        requestInit: options.headers ? { headers: options.headers } : void 0
+      });
+    }
   } else if (options.command) {
     let parsed;
     try {
@@ -44178,6 +44903,7 @@ Actual: Missing both command and url options`
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       const stderrLog = getStderrLog();
+      const connExpected = options.url ? useStreamableHttp ? "successful connection over Streamable HTTP" : "successful connection over SSE" : "successful connection over stdio";
       return {
         success: false,
         totalCases: 0,
@@ -44187,14 +44913,14 @@ Actual: Missing both command and url options`
           {
             tool: "(server)",
             caseFile: "(none)",
-            expected: options.url ? "successful connection over SSE" : "successful connection over stdio",
+            expected: connExpected,
             actual: `failed to connect to server: ${message}${stderrLog}`,
             passed: false
           }
         ],
         report: `Tool: (server)
 Case: (none)
-Expected: ${options.url ? "successful connection over SSE" : "successful connection over stdio"}
+Expected: ${connExpected}
 Actual: failed to connect to server: ${message}${stderrLog}`
       };
     }
@@ -44449,7 +45175,8 @@ async function checkTrial(options) {
     instanceName,
     serverUrl,
     fetchFn = fetch,
-    timeoutMs = 1e4
+    timeoutMs = 1e4,
+    failOpen = true
   } = options;
   const defaultUrl = "https://mcp-license-service.onrender.com";
   const baseUrl = (serverUrl || process.env.MCP_LICENSE_SERVER_URL || defaultUrl).replace(/\/+$/, "");
@@ -44475,12 +45202,26 @@ async function checkTrial(options) {
         error: raw.error
       };
     }
+    if (failOpen && res.status >= 500) {
+      return {
+        valid: true,
+        failOpen: true,
+        warning: `License server returned status ${res.status}. Failing open to avoid blocking CI.`
+      };
+    }
     return {
       valid: false,
       error: `Trial evaluation failed (server returned HTTP ${res.status})`
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    if (failOpen) {
+      return {
+        valid: true,
+        failOpen: true,
+        warning: `Failed to contact license server for trial evaluation (${message}). Failing open to avoid blocking CI.`
+      };
+    }
     return {
       valid: false,
       error: `Failed to contact license server for trial evaluation: ${message}`
@@ -44493,7 +45234,8 @@ async function verifyLicense(options) {
     instanceName,
     serverUrl,
     fetchFn = fetch,
-    timeoutMs = 1e4
+    timeoutMs = 1e4,
+    failOpen = true
   } = options;
   const cleanKey = licenseKey.trim();
   if (!cleanKey) {
@@ -44519,12 +45261,26 @@ async function verifyLicense(options) {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
+    if (failOpen) {
+      return {
+        valid: true,
+        failOpen: true,
+        warning: `Failed to contact license server for validation (${message}). Failing open to avoid blocking CI.`
+      };
+    }
     return {
       valid: false,
       error: `License validation failed: ${message}`
     };
   }
   if (validateRes.status !== 200) {
+    if (failOpen && validateRes.status >= 500) {
+      return {
+        valid: true,
+        failOpen: true,
+        warning: `License server returned status ${validateRes.status}. Failing open to avoid blocking CI.`
+      };
+    }
     return {
       valid: false,
       error: `License validation failed: server returned status ${validateRes.status}`
@@ -44558,12 +45314,26 @@ async function verifyLicense(options) {
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      if (failOpen) {
+        return {
+          valid: true,
+          failOpen: true,
+          warning: `Failed to contact license server for activation (${message}). Failing open to avoid blocking CI.`
+        };
+      }
       return {
         valid: false,
         error: `License activation failed: ${message}`
       };
     }
     if (activateRes.status !== 200) {
+      if (failOpen && activateRes.status >= 500) {
+        return {
+          valid: true,
+          failOpen: true,
+          warning: `License server returned status ${activateRes.status}. Failing open to avoid blocking CI.`
+        };
+      }
       return {
         valid: false,
         error: `License activation failed: server returned status ${activateRes.status}`
@@ -44684,29 +45454,36 @@ async function run(customFetch, telemetryFetch) {
         fetchFn: effectiveTelemetryFetch
       });
     }
+    const failOpenInput = core.getInput("fail-open");
+    const failOpen = failOpenInput === "" || failOpenInput === "true" || failOpenInput === "1";
     if (isPrivate) {
       if (!licenseKey) {
         const trialResult = await checkTrial({
           instanceName,
           serverUrl: serverUrl || void 0,
           fetchFn: customFetch,
-          timeoutMs: 1e4
+          timeoutMs: 1e4,
+          failOpen
         });
-        if (trialResult.valid && trialResult.trial) {
-          const days = trialResult.daysRemaining ?? 14;
-          const checkoutUrl = trialResult.checkoutUrl || "https://buy.stripe.com/bJe7sMgEM0kA8j20Bs0oM01";
-          if (typeof core.notice === "function") {
-            core.notice(
-              `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Upgrade at ${checkoutUrl} to maintain uninterrupted CI.`
-            );
-          } else {
-            core.info(
-              `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Upgrade at ${checkoutUrl}`
-            );
+        if (trialResult.valid) {
+          if (trialResult.failOpen && trialResult.warning) {
+            core.warning(trialResult.warning);
+          } else if (trialResult.trial) {
+            const days = trialResult.daysRemaining ?? 14;
+            const checkoutUrl = trialResult.checkoutUrl || "https://buy.stripe.com/28E00k3S02sI9n6ac20oM04";
+            if (typeof core.notice === "function") {
+              core.notice(
+                `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Upgrade at ${checkoutUrl} to maintain uninterrupted CI.`
+              );
+            } else {
+              core.info(
+                `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Upgrade at ${checkoutUrl}`
+              );
+            }
           }
         } else {
           core.setFailed(
-            trialResult.error || "Private repos require an active license or trial: https://buy.stripe.com/bJe7sMgEM0kA8j20Bs0oM01"
+            trialResult.error || "Private repos require an active license or trial: https://buy.stripe.com/28E00k3S02sI9n6ac20oM04"
           );
           return;
         }
@@ -44716,11 +45493,15 @@ async function run(customFetch, telemetryFetch) {
           instanceName,
           serverUrl: serverUrl || void 0,
           fetchFn: customFetch,
-          timeoutMs: 1e4
+          timeoutMs: 1e4,
+          failOpen
         });
         if (!licenseResult.valid) {
           core.setFailed(licenseResult.error || "License verification failed");
           return;
+        }
+        if (licenseResult.failOpen && licenseResult.warning) {
+          core.warning(licenseResult.warning);
         }
       }
     }
@@ -44732,6 +45513,7 @@ async function run(customFetch, telemetryFetch) {
     }
     const cases = core.getInput("cases") || "cases";
     const headers = parseHeaders(core.getInput("headers"));
+    const transport = core.getInput("transport") || void 0;
     const fuzzInput = core.getInput("fuzz");
     const fuzz = fuzzInput === "true" || fuzzInput === "1";
     const baseline = core.getInput("baseline") || void 0;
@@ -44739,6 +45521,7 @@ async function run(customFetch, telemetryFetch) {
     const checkSummary = await runContractCheck({
       command,
       url: url2,
+      transport,
       headers,
       casesDir: cases,
       fuzz,
@@ -44839,4 +45622,11 @@ undici/lib/fetch/body.js:
 
 undici/lib/websocket/frame.js:
   (*! ws. MIT License. Einar Otto Stangvik <einaros@gmail.com> *)
+
+content-type/index.js:
+  (*!
+   * content-type
+   * Copyright(c) 2015 Douglas Christopher Wilson
+   * MIT Licensed
+   *)
 */

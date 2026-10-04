@@ -8,7 +8,7 @@
     "license-service"
   ],
   "scripts": {
-    "build": "npm --workspace=@local/mcp-contract-check run build && npm --workspace=mcp-contract-check-action run build && npm --workspace=license-service run build",
-    "test": "npm --workspace=@local/mcp-contract-check test && npm --workspace=mcp-contract-check-action test && npm --workspace=license-service test"
+    "build": "npm --workspace=mcp-contract-check run build && npm --workspace=mcp-contract-check-action run build && npm --workspace=license-service run build",
+    "test": "npm --workspace=mcp-contract-check test && npm --workspace=mcp-contract-check-action test && npm --workspace=license-service test"
   }
 }

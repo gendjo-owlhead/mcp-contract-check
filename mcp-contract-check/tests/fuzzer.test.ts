@@ -129,4 +129,58 @@ describe("SchemaFuzzer", () => {
     expect(full).toHaveProperty("optionalField");
     expect(validateJsonSchema(schema, full).valid).toBe(true);
   });
+
+  it("synthesizes boundary payloads for integer, string, and array constraints", () => {
+    const schema = {
+      type: "object",
+      properties: {
+        score: { type: "integer", minimum: 0, maximum: 100 },
+        tag: { type: "string", minLength: 2, maxLength: 10 },
+        items: { type: "array", minItems: 0 },
+      },
+      required: ["score", "tag"],
+    };
+
+    const boundaries = SchemaFuzzer.generateBoundaryPayloads(schema);
+    expect(boundaries.length).toBeGreaterThan(0);
+
+    const minScore = boundaries.find((b) => b.label.includes("minimum"));
+    expect(minScore?.payload.score).toBe(0);
+
+    const maxScore = boundaries.find((b) => b.label.includes("maximum"));
+    expect(maxScore?.payload.score).toBe(100);
+
+    const minTag = boundaries.find((b) => b.label.includes("minLength"));
+    expect((minTag?.payload.tag as string).length).toBe(2);
+
+    const maxTag = boundaries.find((b) => b.label.includes("maxLength"));
+    expect((maxTag?.payload.tag as string).length).toBe(10);
+  });
+
+  it("synthesizes invalid payloads for negative testing", () => {
+    const schema = {
+      type: "object",
+      properties: {
+        age: { type: "integer", minimum: 18, maximum: 65 },
+        username: { type: "string", minLength: 3 },
+      },
+      required: ["username"],
+    };
+
+    const invalid = SchemaFuzzer.generateInvalidPayloads(schema);
+    expect(invalid.length).toBeGreaterThan(0);
+
+    // Missing required field
+    const missingUsername = invalid.find((i) => i.reason.includes("missing required property 'username'"));
+    expect(missingUsername).toBeDefined();
+    expect(missingUsername?.payload).not.toHaveProperty("username");
+
+    // Invalid type for age
+    const badAge = invalid.find((i) => i.reason.includes("invalid type for 'age'"));
+    expect(badAge?.payload.age).toBe("invalid_string_instead_of_number");
+
+    // Out of bounds minimum
+    const belowMin = invalid.find((i) => i.reason.includes("below minimum"));
+    expect(belowMin?.payload.age).toBe(17);
+  });
 });

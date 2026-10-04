@@ -6,10 +6,14 @@ inputs:
     description: "The stdio server command"
     required: false
   url:
-    description: "Remote MCP server SSE endpoint URL"
+    description: "Remote MCP server endpoint URL"
     required: false
+  transport:
+    description: "Remote transport protocol: auto, sse, streamable-http"
+    required: false
+    default: "auto"
   headers:
-    description: "Custom HTTP headers for remote SSE transport (JSON or key: value lines)"
+    description: "Custom HTTP headers for remote transport (JSON or key: value lines)"
     required: false
   cases:
     description: "Directory containing test case fixtures"
@@ -32,6 +36,10 @@ inputs:
     description: "License verification server URL"
     required: false
     default: "https://mcp-license-service.onrender.com"
+  fail-open:
+    description: "Allow CI checks to proceed with a warning if the license server is unreachable or encounters an outage"
+    required: false
+    default: "true"
 outputs:
   total:
     description: "Total number of test cases checked"

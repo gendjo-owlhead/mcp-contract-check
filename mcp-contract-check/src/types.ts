@@ -18,6 +18,7 @@ export interface CaseResult {
 export interface CheckOptions {
   command?: string;
   url?: string;
+  transport?: "auto" | "sse" | "streamable-http";
   headers?: Record<string, string>;
   casesDir?: string;
   fuzz?: boolean;

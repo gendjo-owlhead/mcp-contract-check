@@ -21,6 +21,7 @@ export type DriftSeverity = "breaking" | "non-breaking";
 export type DriftType =
   | "tool_removed"
   | "tool_added"
+  | "description_changed"
   | "input_required_added"
   | "input_enum_removed"
   | "input_type_narrowed"
@@ -93,11 +94,25 @@ export class ContractDiff {
       }
     }
 
-    // 3. For tools present in both, compare schemas
+    // 3. For tools present in both, compare schemas and descriptions
     for (const [name, baselineTool] of baselineToolMap) {
       const currentTool = currentToolMap.get(name);
       if (!currentTool) {
         continue;
+      }
+
+      // Check description drift (non-breaking)
+      if (
+        baselineTool.description !== undefined &&
+        currentTool.description !== undefined &&
+        baselineTool.description !== currentTool.description
+      ) {
+        issues.push({
+          tool: name,
+          type: "description_changed",
+          severity: "non-breaking",
+          message: `Tool '${name}' description changed (model instructions drifted)`,
+        });
       }
 
       // Check input schema changes

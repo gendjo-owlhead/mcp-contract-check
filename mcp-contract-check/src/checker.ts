@@ -3,6 +3,7 @@ import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { parseCommandLine } from "./command-parser.js";
 import { ContractDiff, type ContractSnapshot, type DiffResult } from "./diff.js";
@@ -63,6 +64,7 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
 
   let transport: Transport;
   let getStderrLog = (): string => "";
+  let useStreamableHttp = false;
 
   if (options.url) {
     let urlObj: URL;
@@ -87,9 +89,20 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
       };
     }
 
-    transport = new SSEClientTransport(urlObj, {
-      requestInit: options.headers ? { headers: options.headers } : undefined,
-    });
+    const transportType = options.transport || "auto";
+    useStreamableHttp =
+      transportType === "streamable-http" ||
+      (transportType === "auto" && !urlObj.pathname.endsWith("/sse"));
+
+    if (useStreamableHttp) {
+      transport = new StreamableHTTPClientTransport(urlObj, {
+        requestInit: options.headers ? { headers: options.headers } : undefined,
+      });
+    } else {
+      transport = new SSEClientTransport(urlObj, {
+        requestInit: options.headers ? { headers: options.headers } : undefined,
+      });
+    }
   } else if (options.command) {
     let parsed: { command: string; args: string[] };
     try {
@@ -161,6 +174,11 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       const stderrLog = getStderrLog();
+      const connExpected = options.url
+        ? useStreamableHttp
+          ? "successful connection over Streamable HTTP"
+          : "successful connection over SSE"
+        : "successful connection over stdio";
       return {
         success: false,
         totalCases: 0,
@@ -170,12 +188,12 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
           {
             tool: "(server)",
             caseFile: "(none)",
-            expected: options.url ? "successful connection over SSE" : "successful connection over stdio",
+            expected: connExpected,
             actual: `failed to connect to server: ${message}${stderrLog}`,
             passed: false,
           },
         ],
-        report: `Tool: (server)\nCase: (none)\nExpected: ${options.url ? "successful connection over SSE" : "successful connection over stdio"}\nActual: failed to connect to server: ${message}${stderrLog}`,
+        report: `Tool: (server)\nCase: (none)\nExpected: ${connExpected}\nActual: failed to connect to server: ${message}${stderrLog}`,
       };
     }
 

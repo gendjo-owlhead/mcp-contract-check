@@ -19,10 +19,9 @@ app.get("/health", (_req: Request, res: Response) => {
   });
 });
 
-export const CHECKOUT_URL = "https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00";
+export const CHECKOUT_URL = "https://buy.stripe.com/28E00k3S02sI9n6ac20oM04";
 export const LIFETIME_CHECKOUT_URL =
-  process.env.STRIPE_LIFETIME_CHECKOUT_URL ||
-  "https://buy.stripe.com/bJe7sMgEM0kA8j20Bs0oM01";
+  process.env.STRIPE_LIFETIME_CHECKOUT_URL || "https://buy.stripe.com/28E00k3S02sI9n6ac20oM04";
 export const TRIAL_DURATION_DAYS = 14;
 export const TRIAL_DURATION_MS = TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000;
 
@@ -300,7 +299,7 @@ app.post("/v1/licenses/trial", (req: Request, res: Response) => {
       valid: false,
       trial: false,
       trialExpired: true,
-      error: `14-day trial for '${instanceName}' expired. Subscribe or get a lifetime pass to continue: ${CHECKOUT_URL}`,
+      error: `14-day trial for '${instanceName}' expired. Get lifetime access for €10: ${CHECKOUT_URL}`,
       checkoutUrl: CHECKOUT_URL,
       lifetimeCheckoutUrl: LIFETIME_CHECKOUT_URL,
     });

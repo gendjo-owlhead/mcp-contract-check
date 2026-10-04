@@ -236,4 +236,166 @@ export class SchemaFuzzer {
 
     return result;
   }
+
+  /**
+   * Generates boundary value payloads (e.g. minimum, maximum, empty string, minItems)
+   */
+  public static generateBoundaryPayloads(
+    schema?: Record<string, unknown> | null
+  ): Array<{ payload: Record<string, unknown>; label: string }> {
+    if (!schema || typeof schema !== "object" || !schema.properties) {
+      return [];
+    }
+
+    const properties = (schema.properties || {}) as Record<string, Record<string, unknown>>;
+    const baseValid = (this.generateValidPayload(schema) || {}) as Record<string, unknown>;
+    const boundaries: Array<{ payload: Record<string, unknown>; label: string }> = [];
+
+    for (const [key, propSchema] of Object.entries(properties)) {
+      if (!propSchema || typeof propSchema !== "object") continue;
+
+      const rawType = propSchema.type;
+      if (rawType === "integer" || rawType === "number") {
+        if (typeof propSchema.minimum === "number") {
+          boundaries.push({
+            payload: { ...baseValid, [key]: propSchema.minimum },
+            label: `boundary: ${key} = minimum (${propSchema.minimum})`,
+          });
+        }
+        if (typeof propSchema.maximum === "number") {
+          boundaries.push({
+            payload: { ...baseValid, [key]: propSchema.maximum },
+            label: `boundary: ${key} = maximum (${propSchema.maximum})`,
+          });
+        }
+        if (typeof propSchema.exclusiveMinimum === "number") {
+          const val = propSchema.exclusiveMinimum + (rawType === "integer" ? 1 : 0.001);
+          boundaries.push({
+            payload: { ...baseValid, [key]: val },
+            label: `boundary: ${key} = exclusiveMinimum + 1 (${val})`,
+          });
+        }
+        if (typeof propSchema.exclusiveMaximum === "number") {
+          const val = propSchema.exclusiveMaximum - (rawType === "integer" ? 1 : 0.001);
+          boundaries.push({
+            payload: { ...baseValid, [key]: val },
+            label: `boundary: ${key} = exclusiveMaximum - 1 (${val})`,
+          });
+        }
+      } else if (rawType === "string") {
+        const minLen = typeof propSchema.minLength === "number" ? propSchema.minLength : 0;
+        if (minLen === 0) {
+          boundaries.push({
+            payload: { ...baseValid, [key]: "" },
+            label: `boundary: ${key} = empty string`,
+          });
+        } else {
+          boundaries.push({
+            payload: { ...baseValid, [key]: "a".repeat(minLen) },
+            label: `boundary: ${key} = minLength (${minLen})`,
+          });
+        }
+        if (typeof propSchema.maxLength === "number" && propSchema.maxLength < 1000) {
+          boundaries.push({
+            payload: { ...baseValid, [key]: "a".repeat(propSchema.maxLength) },
+            label: `boundary: ${key} = maxLength (${propSchema.maxLength})`,
+          });
+        }
+      } else if (rawType === "array") {
+        const minItems = typeof propSchema.minItems === "number" ? propSchema.minItems : 0;
+        if (minItems === 0) {
+          boundaries.push({
+            payload: { ...baseValid, [key]: [] },
+            label: `boundary: ${key} = empty array`,
+          });
+        }
+      }
+    }
+
+    return boundaries;
+  }
+
+  /**
+   * Generates invalid payloads violating schema constraints for negative testing.
+   */
+  public static generateInvalidPayloads(
+    schema?: Record<string, unknown> | null
+  ): Array<{ payload: Record<string, unknown>; reason: string }> {
+    if (!schema || typeof schema !== "object" || !schema.properties) {
+      return [];
+    }
+
+    const properties = (schema.properties || {}) as Record<string, Record<string, unknown>>;
+    const required = Array.isArray(schema.required) ? (schema.required as string[]) : [];
+    const baseValid = (this.generateValidPayload(schema) || {}) as Record<string, unknown>;
+    const invalidCases: Array<{ payload: Record<string, unknown>; reason: string }> = [];
+
+    // 1. Missing required properties
+    for (const reqKey of required) {
+      const copy = { ...baseValid };
+      delete copy[reqKey];
+      invalidCases.push({
+        payload: copy,
+        reason: `missing required property '${reqKey}'`,
+      });
+    }
+
+    // 2. Type violations & constraint breaches
+    for (const [key, propSchema] of Object.entries(properties)) {
+      if (!propSchema || typeof propSchema !== "object") continue;
+
+      const rawType = propSchema.type;
+      if (rawType === "integer" || rawType === "number") {
+        invalidCases.push({
+          payload: { ...baseValid, [key]: "invalid_string_instead_of_number" },
+          reason: `invalid type for '${key}' (string instead of number)`,
+        });
+
+        if (typeof propSchema.minimum === "number") {
+          invalidCases.push({
+            payload: { ...baseValid, [key]: propSchema.minimum - 1 },
+            reason: `'${key}' below minimum (${propSchema.minimum - 1} < ${propSchema.minimum})`,
+          });
+        }
+
+        if (typeof propSchema.maximum === "number") {
+          invalidCases.push({
+            payload: { ...baseValid, [key]: propSchema.maximum + 1 },
+            reason: `'${key}' above maximum (${propSchema.maximum + 1} > ${propSchema.maximum})`,
+          });
+        }
+      } else if (rawType === "string") {
+        invalidCases.push({
+          payload: { ...baseValid, [key]: 12345 },
+          reason: `invalid type for '${key}' (number instead of string)`,
+        });
+
+        if (typeof propSchema.minLength === "number" && propSchema.minLength > 0) {
+          invalidCases.push({
+            payload: { ...baseValid, [key]: "" },
+            reason: `'${key}' string length 0 violates minLength ${propSchema.minLength}`,
+          });
+        }
+      } else if (rawType === "boolean") {
+        invalidCases.push({
+          payload: { ...baseValid, [key]: "not-a-boolean" },
+          reason: `invalid type for '${key}' (string instead of boolean)`,
+        });
+      } else if (rawType === "array") {
+        invalidCases.push({
+          payload: { ...baseValid, [key]: "not-an-array" },
+          reason: `invalid type for '${key}' (string instead of array)`,
+        });
+      }
+
+      if (Array.isArray(propSchema.enum) && propSchema.enum.length > 0) {
+        invalidCases.push({
+          payload: { ...baseValid, [key]: "__INVALID_ENUM_VALUE__" },
+          reason: `'${key}' has invalid enum value '__INVALID_ENUM_VALUE__'`,
+        });
+      }
+    }
+
+    return invalidCases;
+  }
 }

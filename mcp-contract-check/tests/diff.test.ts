@@ -238,4 +238,22 @@ describe("ContractDiff", () => {
     expect(report).toContain("CONTRACT BREAKING CHANGES (1):");
     expect(report).toContain("[BREAKING] getUser");
   });
+
+  it("detects tool description drift as non-breaking change", () => {
+    const snapshot = ContractDiff.createSnapshot(baseTools);
+    const modifiedTools = [
+      {
+        ...baseTools[0],
+        description: "Retrieves a user account and profile by identifier",
+      },
+    ];
+    const result = ContractDiff.compare(snapshot, modifiedTools);
+
+    expect(result.compatible).toBe(true);
+    expect(result.breakingCount).toBe(0);
+    expect(result.nonBreakingCount).toBe(1);
+    expect(result.issues[0].type).toBe("description_changed");
+    expect(result.issues[0].severity).toBe("non-breaking");
+    expect(result.issues[0].message).toContain("description changed");
+  });
 });

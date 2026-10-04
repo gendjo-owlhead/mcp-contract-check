@@ -89,6 +89,15 @@ export function buildCasesForTools(tools, loadedFixtures, options) {
                         caseFile: "(fuzzed)",
                     });
                 }
+                const boundaries = SchemaFuzzer.generateBoundaryPayloads(tool.inputSchema);
+                for (const b of boundaries) {
+                    cases.push({
+                        tool: tool.name,
+                        arguments: b.payload,
+                        expected: "success",
+                        caseFile: `(fuzzed: ${b.label})`,
+                    });
+                }
             }
             else {
                 cases.push({

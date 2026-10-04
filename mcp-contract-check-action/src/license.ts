@@ -1,10 +1,14 @@
 export interface LicenseCheckResult {
   valid: boolean;
+  failOpen?: boolean;
+  warning?: string;
   error?: string;
 }
 
 export interface TrialCheckResult {
   valid: boolean;
+  failOpen?: boolean;
+  warning?: string;
   trial?: boolean;
   daysRemaining?: number;
   expiresAt?: string;
@@ -17,6 +21,7 @@ export interface TrialCheckOptions {
   serverUrl?: string;
   fetchFn?: typeof fetch;
   timeoutMs?: number;
+  failOpen?: boolean;
 }
 
 export async function checkTrial(
@@ -27,6 +32,7 @@ export async function checkTrial(
     serverUrl,
     fetchFn = fetch,
     timeoutMs = 10000,
+    failOpen = true,
   } = options;
 
   const defaultUrl = "https://mcp-license-service.onrender.com";
@@ -65,12 +71,27 @@ export async function checkTrial(
       };
     }
 
+    if (failOpen && res.status >= 500) {
+      return {
+        valid: true,
+        failOpen: true,
+        warning: `License server returned status ${res.status}. Failing open to avoid blocking CI.`,
+      };
+    }
+
     return {
       valid: false,
       error: `Trial evaluation failed (server returned HTTP ${res.status})`,
     };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
+    if (failOpen) {
+      return {
+        valid: true,
+        failOpen: true,
+        warning: `Failed to contact license server for trial evaluation (${message}). Failing open to avoid blocking CI.`,
+      };
+    }
     return {
       valid: false,
       error: `Failed to contact license server for trial evaluation: ${message}`,
@@ -84,6 +105,7 @@ export interface LicenseVerifyOptions {
   serverUrl?: string;
   fetchFn?: typeof fetch;
   timeoutMs?: number;
+  failOpen?: boolean;
 }
 
 export async function verifyLicense(
@@ -95,6 +117,7 @@ export async function verifyLicense(
     serverUrl,
     fetchFn = fetch,
     timeoutMs = 10000,
+    failOpen = true,
   } = options;
 
   const cleanKey = licenseKey.trim();
@@ -123,6 +146,13 @@ export async function verifyLicense(
     });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);
+    if (failOpen) {
+      return {
+        valid: true,
+        failOpen: true,
+        warning: `Failed to contact license server for validation (${message}). Failing open to avoid blocking CI.`,
+      };
+    }
     return {
       valid: false,
       error: `License validation failed: ${message}`,
@@ -130,6 +160,13 @@ export async function verifyLicense(
   }
 
   if (validateRes.status !== 200) {
+    if (failOpen && validateRes.status >= 500) {
+      return {
+        valid: true,
+        failOpen: true,
+        warning: `License server returned status ${validateRes.status}. Failing open to avoid blocking CI.`,
+      };
+    }
     return {
       valid: false,
       error: `License validation failed: server returned status ${validateRes.status}`,
@@ -176,6 +213,13 @@ export async function verifyLicense(
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
+      if (failOpen) {
+        return {
+          valid: true,
+          failOpen: true,
+          warning: `Failed to contact license server for activation (${message}). Failing open to avoid blocking CI.`,
+        };
+      }
       return {
         valid: false,
         error: `License activation failed: ${message}`,
@@ -183,6 +227,13 @@ export async function verifyLicense(
     }
 
     if (activateRes.status !== 200) {
+      if (failOpen && activateRes.status >= 500) {
+        return {
+          valid: true,
+          failOpen: true,
+          warning: `License server returned status ${activateRes.status}. Failing open to avoid blocking CI.`,
+        };
+      }
       return {
         valid: false,
         error: `License activation failed: server returned status ${activateRes.status}`,

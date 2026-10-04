@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 import * as github from "@actions/github";
-import { runContractCheck } from "@local/mcp-contract-check";
+import { runContractCheck } from "mcp-contract-check";
 import { checkTrial, verifyLicense } from "./license.js";
 
 export function parseHeaders(raw?: string): Record<string, string> | undefined {
@@ -130,6 +130,10 @@ export async function run(
       });
     }
 
+    const failOpenInput = core.getInput("fail-open");
+    const failOpen =
+      failOpenInput === "" || failOpenInput === "true" || failOpenInput === "1";
+
     if (isPrivate) {
       if (!licenseKey) {
         const trialResult = await checkTrial({
@@ -137,26 +141,31 @@ export async function run(
           serverUrl: serverUrl || undefined,
           fetchFn: customFetch,
           timeoutMs: 10000,
+          failOpen,
         });
 
-        if (trialResult.valid && trialResult.trial) {
-          const days = trialResult.daysRemaining ?? 14;
-          const checkoutUrl =
-            trialResult.checkoutUrl ||
-            "https://buy.stripe.com/bJe7sMgEM0kA8j20Bs0oM01";
-          if (typeof core.notice === "function") {
-            core.notice(
-              `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Upgrade at ${checkoutUrl} to maintain uninterrupted CI.`
-            );
-          } else {
-            core.info(
-              `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Upgrade at ${checkoutUrl}`
-            );
+        if (trialResult.valid) {
+          if (trialResult.failOpen && trialResult.warning) {
+            core.warning(trialResult.warning);
+          } else if (trialResult.trial) {
+            const days = trialResult.daysRemaining ?? 14;
+            const checkoutUrl =
+              trialResult.checkoutUrl ||
+              "https://buy.stripe.com/28E00k3S02sI9n6ac20oM04";
+            if (typeof core.notice === "function") {
+              core.notice(
+                `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Upgrade at ${checkoutUrl} to maintain uninterrupted CI.`
+              );
+            } else {
+              core.info(
+                `Running on 14-day evaluation trial for '${instanceName}' (${days} days remaining). Upgrade at ${checkoutUrl}`
+              );
+            }
           }
         } else {
           core.setFailed(
             trialResult.error ||
-              "Private repos require an active license or trial: https://buy.stripe.com/bJe7sMgEM0kA8j20Bs0oM01"
+              "Private repos require an active license or trial: https://buy.stripe.com/28E00k3S02sI9n6ac20oM04"
           );
           return;
         }
@@ -167,11 +176,16 @@ export async function run(
           serverUrl: serverUrl || undefined,
           fetchFn: customFetch,
           timeoutMs: 10000,
+          failOpen,
         });
 
         if (!licenseResult.valid) {
           core.setFailed(licenseResult.error || "License verification failed");
           return;
+        }
+
+        if (licenseResult.failOpen && licenseResult.warning) {
+          core.warning(licenseResult.warning);
         }
       }
     }
@@ -186,6 +200,7 @@ export async function run(
 
     const cases = core.getInput("cases") || "cases";
     const headers = parseHeaders(core.getInput("headers"));
+    const transport = (core.getInput("transport") as "auto" | "sse" | "streamable-http") || undefined;
     const fuzzInput = core.getInput("fuzz");
     const fuzz = fuzzInput === "true" || fuzzInput === "1";
     const baseline = core.getInput("baseline") || undefined;
@@ -194,6 +209,7 @@ export async function run(
     const checkSummary = await runContractCheck({
       command,
       url,
+      transport,
       headers,
       casesDir: cases,
       fuzz,

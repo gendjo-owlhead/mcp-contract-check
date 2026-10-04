@@ -3,6 +3,7 @@ import path from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { parseCommandLine } from "./command-parser.js";
 import { ContractDiff } from "./diff.js";
 import { buildCasesForTools, loadFixtures } from "./fixtures.js";
@@ -51,6 +52,7 @@ export async function runContractCheck(options) {
     let diffResult;
     let transport;
     let getStderrLog = () => "";
+    let useStreamableHttp = false;
     if (options.url) {
         let urlObj;
         try {
@@ -74,9 +76,20 @@ export async function runContractCheck(options) {
                 report: `Tool: (server)\nCase: (none)\nExpected: valid server URL\nActual: Invalid URL: ${options.url}`,
             };
         }
-        transport = new SSEClientTransport(urlObj, {
-            requestInit: options.headers ? { headers: options.headers } : undefined,
-        });
+        const transportType = options.transport || "auto";
+        useStreamableHttp =
+            transportType === "streamable-http" ||
+                (transportType === "auto" && !urlObj.pathname.endsWith("/sse"));
+        if (useStreamableHttp) {
+            transport = new StreamableHTTPClientTransport(urlObj, {
+                requestInit: options.headers ? { headers: options.headers } : undefined,
+            });
+        }
+        else {
+            transport = new SSEClientTransport(urlObj, {
+                requestInit: options.headers ? { headers: options.headers } : undefined,
+            });
+        }
     }
     else if (options.command) {
         let parsed;
@@ -143,6 +156,11 @@ export async function runContractCheck(options) {
         catch (err) {
             const message = err instanceof Error ? err.message : String(err);
             const stderrLog = getStderrLog();
+            const connExpected = options.url
+                ? useStreamableHttp
+                    ? "successful connection over Streamable HTTP"
+                    : "successful connection over SSE"
+                : "successful connection over stdio";
             return {
                 success: false,
                 totalCases: 0,
@@ -152,12 +170,12 @@ export async function runContractCheck(options) {
                     {
                         tool: "(server)",
                         caseFile: "(none)",
-                        expected: options.url ? "successful connection over SSE" : "successful connection over stdio",
+                        expected: connExpected,
                         actual: `failed to connect to server: ${message}${stderrLog}`,
                         passed: false,
                     },
                 ],
-                report: `Tool: (server)\nCase: (none)\nExpected: ${options.url ? "successful connection over SSE" : "successful connection over stdio"}\nActual: failed to connect to server: ${message}${stderrLog}`,
+                report: `Tool: (server)\nCase: (none)\nExpected: ${connExpected}\nActual: failed to connect to server: ${message}${stderrLog}`,
             };
         }
         let tools = [];

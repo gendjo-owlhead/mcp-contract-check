@@ -12,19 +12,19 @@ Run directly via `npx` or add to your project dependencies:
 
 ```bash
 # Basic run with stdio server
-npx @local/mcp-contract-check --command "<stdio server command>" --cases <dir>
+npx mcp-contract-check --command "<stdio server command>" --cases <dir>
 
 # Run with automatic schema fuzzing
-npx @local/mcp-contract-check --command "<stdio server command>" --fuzz
+npx mcp-contract-check --command "<stdio server command>" --fuzz
 
 # Save contract snapshot
-npx @local/mcp-contract-check --command "<stdio server command>" --save-contract <path>
+npx mcp-contract-check --command "<stdio server command>" --save-contract <path>
 
 # Verify against baseline contract
-npx @local/mcp-contract-check --command "<stdio server command>" --baseline <path>
+npx mcp-contract-check --command "<stdio server command>" --baseline <path>
 
 # Test remote SSE server with custom headers
-npx @local/mcp-contract-check --url "<sse url>" -H "Authorization: Bearer <token>"
+npx mcp-contract-check --url "<sse url>" -H "Authorization: Bearer <token>"
 ```
 
 ---
