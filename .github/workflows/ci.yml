@@ -21,7 +21,7 @@ jobs:
       - name: Install dependencies & build
         run: |
           npm install
-          npm run build --workspaces
+          npm run build --workspaces --if-present
 
       - name: Run unit & integration tests
         run: |
