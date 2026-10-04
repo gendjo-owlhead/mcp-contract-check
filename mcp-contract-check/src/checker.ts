@@ -1,10 +1,15 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, "../package.json"), "utf-8"));
 import { parseCommandLine } from "./command-parser.js";
 import { ContractDiff, type ContractSnapshot, type DiffResult } from "./diff.js";
 import { buildCasesForTools, loadFixtures } from "./fixtures.js";
@@ -57,6 +62,25 @@ export function formatReport(results: CaseResult[]): string {
     .join("\n\n");
 }
 
+function createErrorSummary(tool: string, caseFile: string, expected: string, actual: string): CheckSummary {
+  return {
+    success: false,
+    totalCases: 0,
+    passedCases: 0,
+    failedCases: 1,
+    results: [
+      {
+        tool,
+        caseFile,
+        expected,
+        actual,
+        passed: false,
+      },
+    ],
+    report: `Tool: ${tool}\nCase: ${caseFile}\nExpected: ${expected}\nActual: ${actual}`,
+  };
+}
+
 export async function runContractCheck(options: CheckOptions): Promise<CheckSummary> {
   const { casesDir = "cases", timeoutMs = 30000 } = options;
   const results: CaseResult[] = [];
@@ -71,22 +95,7 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
     try {
       urlObj = new URL(options.url);
     } catch {
-      return {
-        success: false,
-        totalCases: 0,
-        passedCases: 0,
-        failedCases: 1,
-        results: [
-          {
-            tool: "(server)",
-            caseFile: "(none)",
-            expected: "valid server URL",
-            actual: `Invalid URL: ${options.url}`,
-            passed: false,
-          },
-        ],
-        report: `Tool: (server)\nCase: (none)\nExpected: valid server URL\nActual: Invalid URL: ${options.url}`,
-      };
+      return createErrorSummary("(server)", "(none)", "valid server URL", `Invalid URL: ${options.url}`);
     }
 
     const transportType = options.transport || "auto";
@@ -109,22 +118,7 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
       parsed = parseCommandLine(options.command);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      return {
-        success: false,
-        totalCases: 0,
-        passedCases: 0,
-        failedCases: 1,
-        results: [
-          {
-            tool: "(server)",
-            caseFile: "(none)",
-            expected: "valid server command",
-            actual: message,
-            passed: false,
-          },
-        ],
-        report: `Tool: (server)\nCase: (none)\nExpected: valid server command\nActual: ${message}`,
-      };
+      return createErrorSummary("(server)", "(none)", "valid server command", message);
     }
 
     const stdioTransport = new StdioClientTransport({
@@ -145,26 +139,11 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
 
     transport = stdioTransport;
   } else {
-    return {
-      success: false,
-      totalCases: 0,
-      passedCases: 0,
-      failedCases: 1,
-      results: [
-        {
-          tool: "(server)",
-          caseFile: "(none)",
-          expected: "server command or URL",
-          actual: "Missing both command and url options",
-          passed: false,
-        },
-      ],
-      report: `Tool: (server)\nCase: (none)\nExpected: server command or URL\nActual: Missing both command and url options`,
-    };
+    return createErrorSummary("(server)", "(none)", "server command or URL", "Missing both command and url options");
   }
 
   const client = new Client(
-    { name: "mcp-contract-check", version: "1.1.0" },
+    { name: "mcp-contract-check", version: pkg.version || "1.1.0" },
     { capabilities: {} }
   );
 
@@ -179,22 +158,7 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
           ? "successful connection over Streamable HTTP"
           : "successful connection over SSE"
         : "successful connection over stdio";
-      return {
-        success: false,
-        totalCases: 0,
-        passedCases: 0,
-        failedCases: 1,
-        results: [
-          {
-            tool: "(server)",
-            caseFile: "(none)",
-            expected: connExpected,
-            actual: `failed to connect to server: ${message}${stderrLog}`,
-            passed: false,
-          },
-        ],
-        report: `Tool: (server)\nCase: (none)\nExpected: ${connExpected}\nActual: failed to connect to server: ${message}${stderrLog}`,
-      };
+      return createErrorSummary("(server)", "(none)", connExpected, `failed to connect to server: ${message}${stderrLog}`);
     }
 
     let tools: Array<{
@@ -208,22 +172,7 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
       tools = (listRes.tools ?? []) as typeof tools;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      return {
-        success: false,
-        totalCases: 0,
-        passedCases: 0,
-        failedCases: 1,
-        results: [
-          {
-            tool: "(server)",
-            caseFile: "(none)",
-            expected: "successful listTools response",
-            actual: `failed to list tools: ${message}`,
-            passed: false,
-          },
-        ],
-        report: `Tool: (server)\nCase: (none)\nExpected: successful listTools response\nActual: failed to list tools: ${message}`,
-      };
+      return createErrorSummary("(server)", "(none)", "successful listTools response", `failed to list tools: ${message}`);
     }
 
     if (options.saveContract) {
@@ -239,22 +188,7 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
     if (options.baseline) {
       const baselinePath = path.resolve(process.cwd(), options.baseline);
       if (!fs.existsSync(baselinePath)) {
-        return {
-          success: false,
-          totalCases: 0,
-          passedCases: 0,
-          failedCases: 1,
-          results: [
-            {
-              tool: "(baseline)",
-              caseFile: options.baseline,
-              expected: "existing baseline file",
-              actual: `baseline snapshot not found at ${options.baseline}`,
-              passed: false,
-            },
-          ],
-          report: `Tool: (baseline)\nCase: ${options.baseline}\nExpected: existing baseline file\nActual: baseline snapshot not found at ${options.baseline}`,
-        };
+        return createErrorSummary("(baseline)", options.baseline, "existing baseline file", `baseline snapshot not found at ${options.baseline}`);
       }
 
       let baselineSnapshot: ContractSnapshot;
@@ -263,22 +197,7 @@ export async function runContractCheck(options: CheckOptions): Promise<CheckSumm
         baselineSnapshot = JSON.parse(raw);
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        return {
-          success: false,
-          totalCases: 0,
-          passedCases: 0,
-          failedCases: 1,
-          results: [
-            {
-              tool: "(baseline)",
-              caseFile: options.baseline,
-              expected: "valid JSON baseline snapshot",
-              actual: `failed to parse baseline JSON: ${message}`,
-              passed: false,
-            },
-          ],
-          report: `Tool: (baseline)\nCase: ${options.baseline}\nExpected: valid JSON baseline snapshot\nActual: failed to parse baseline JSON: ${message}`,
-        };
+        return createErrorSummary("(baseline)", options.baseline, "valid JSON baseline snapshot", `failed to parse baseline JSON: ${message}`);
       }
 
       diffResult = ContractDiff.compare(baselineSnapshot, tools);

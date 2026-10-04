@@ -1,6 +1,6 @@
 {
   "name": "mcp-check-demo",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Minimal stdio MCP demo server for contract checking",
   "type": "module",
   "scripts": {

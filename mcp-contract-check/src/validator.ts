@@ -24,15 +24,16 @@ export function validateJsonSchema(schema: unknown, data: unknown): ValidationRe
   }
 
   try {
-    const validate = ajv.compile(schema as Record<string, unknown>);
-    const valid = validate(data);
+    const valid = ajv.validate(schema as Record<string, unknown>, data);
     if (!valid) {
-      const errors = (validate.errors ?? []).map(
+      const errors = (ajv.errors ?? []).map(
         (err: { instancePath?: string; message?: string }) =>
           `${err.instancePath || "/"} ${err.message}`.trim()
       );
+      ajv.removeSchema(); // Clear compiled schemas to prevent memory leaks
       return { valid: false, errors };
     }
+    ajv.removeSchema(); // Clear compiled schemas to prevent memory leaks
     return { valid: true, errors: [] };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err);

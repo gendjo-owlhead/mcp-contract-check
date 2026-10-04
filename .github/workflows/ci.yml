@@ -20,16 +20,12 @@ jobs:
 
       - name: Install dependencies & build
         run: |
-          cd mcp-contract-check && npm install && npm run build
-          cd ../mcp-contract-check-action && npm install && npm run build
-          cd ../license-service && npm install && npm run build
-          cd ../mcp-check-demo && npm install
+          npm install
+          npm run build --workspaces
 
       - name: Run unit & integration tests
         run: |
-          cd mcp-contract-check && npm test
-          cd ../mcp-contract-check-action && npm test
-          cd ../license-service && npm test
+          npm run test --workspaces --if-present
 
       - name: Run Action on demo server
         uses: ./

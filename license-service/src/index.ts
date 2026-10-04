@@ -1,15 +1,24 @@
-import cors from "cors";
 import dotenv from "dotenv";
 import express, { Request, Response } from "express";
+import rateLimit from "express-rate-limit";
+import Database from "better-sqlite3";
 import { verifyStripeSubscription } from "./stripe.js";
 
 dotenv.config();
 
 export const app = express();
 
-app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  limit: 100, // Limit each IP to 100 requests per `window` (here, per 15 minutes).
+  standardHeaders: "draft-7", // draft-6: `RateLimit-*` headers; draft-7: combined `RateLimit` header
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers.
+});
+
+app.use("/v1/", apiLimiter);
 
 app.get("/health", (_req: Request, res: Response) => {
   res.json({
@@ -30,7 +39,49 @@ export interface TrialRecord {
   createdAt: number;
 }
 
-export const trialStore = new Map<string, TrialRecord>();
+const db = new Database(process.env.DB_PATH || "db.sqlite");
+db.pragma("journal_mode = WAL");
+db.exec(`
+  CREATE TABLE IF NOT EXISTS trials (
+    instanceName TEXT PRIMARY KEY,
+    createdAt INTEGER
+  );
+  CREATE TABLE IF NOT EXISTS telemetry (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp TEXT,
+    mode TEXT,
+    repo TEXT,
+    version TEXT
+  );
+`);
+
+const insertTrial = db.prepare("INSERT OR IGNORE INTO trials (instanceName, createdAt) VALUES (?, ?)");
+const getTrial = db.prepare("SELECT * FROM trials WHERE instanceName = ?");
+const getAllTrialsStmt = db.prepare("SELECT * FROM trials ORDER BY createdAt DESC");
+const insertTelemetry = db.prepare("INSERT INTO telemetry (timestamp, mode, repo, version) VALUES (?, ?, ?, ?)");
+const getRecentTelemetry = db.prepare("SELECT * FROM telemetry ORDER BY id DESC LIMIT 50");
+const getTelemetryStats = db.prepare(`
+  SELECT 
+    COUNT(*) as totalRuns,
+    SUM(CASE WHEN mode = 'public' THEN 1 ELSE 0 END) as publicRuns,
+    SUM(CASE WHEN mode = 'trial' THEN 1 ELSE 0 END) as trialRuns,
+    SUM(CASE WHEN mode = 'licensed' THEN 1 ELSE 0 END) as licensedRuns
+  FROM telemetry
+`);
+
+export function getTrialRecord(instanceName: string): TrialRecord | undefined {
+  return getTrial.get(instanceName) as TrialRecord | undefined;
+}
+
+export function createTrialRecord(instanceName: string): TrialRecord {
+  const trial = { instanceName, createdAt: Date.now() };
+  insertTrial.run(trial.instanceName, trial.createdAt);
+  return trial;
+}
+
+export function getAllTrials(): TrialRecord[] {
+  return getAllTrialsStmt.all() as TrialRecord[];
+}
 
 export interface TelemetryRecord {
   timestamp: string;
@@ -39,39 +90,34 @@ export interface TelemetryRecord {
   version?: string;
 }
 
-export const telemetryStore = {
-  totalRuns: 0,
-  publicRuns: 0,
-  trialRuns: 0,
-  licensedRuns: 0,
-  recentRuns: [] as TelemetryRecord[],
-};
-
 export function recordRun(data: {
   mode?: string;
   repo?: string;
   version?: string;
 }) {
-  telemetryStore.totalRuns++;
   const mode =
     data.mode === "trial" || data.mode === "licensed"
       ? (data.mode as "trial" | "licensed")
       : "public";
 
-  if (mode === "public") telemetryStore.publicRuns++;
-  else if (mode === "trial") telemetryStore.trialRuns++;
-  else if (mode === "licensed") telemetryStore.licensedRuns++;
-
-  telemetryStore.recentRuns.unshift({
-    timestamp: new Date().toISOString(),
+  insertTelemetry.run(
+    new Date().toISOString(),
     mode,
-    repo: data.repo || "anonymous",
-    version: data.version || "1.1.0",
-  });
+    data.repo || "anonymous",
+    data.version || "1.1.0"
+  );
+}
 
-  if (telemetryStore.recentRuns.length > 50) {
-    telemetryStore.recentRuns.pop();
-  }
+export function getTelemetryData() {
+  const stats = getTelemetryStats.get() as any;
+  const recentRuns = getRecentTelemetry.all() as TelemetryRecord[];
+  return {
+    totalRuns: stats.totalRuns || 0,
+    publicRuns: stats.publicRuns || 0,
+    trialRuns: stats.trialRuns || 0,
+    licensedRuns: stats.licensedRuns || 0,
+    recentRuns,
+  };
 }
 
 app.post("/v1/telemetry/ping", (req: Request, res: Response) => {
@@ -80,11 +126,19 @@ app.post("/v1/telemetry/ping", (req: Request, res: Response) => {
   const version = (req.body.version || "1.1.0") as string;
 
   recordRun({ mode, repo, version });
-  res.json({ ok: true, totalRuns: telemetryStore.totalRuns });
+  res.json({ ok: true, totalRuns: getTelemetryData().totalRuns });
 });
 
 app.get(["/stats", "/v1/telemetry/stats"], (req: Request, res: Response) => {
-  const trials = Array.from(trialStore.values()).map((t) => {
+  const escapeHtml = (unsafe: string) =>
+    String(unsafe)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+  const trials = getAllTrials().map((t) => {
     const elapsedMs = Date.now() - t.createdAt;
     const remainingMs = TRIAL_DURATION_MS - elapsedMs;
     const daysRemaining = Math.max(0, Math.ceil(remainingMs / (24 * 60 * 60 * 1000)));
@@ -96,17 +150,19 @@ app.get(["/stats", "/v1/telemetry/stats"], (req: Request, res: Response) => {
     };
   });
 
+  const telemetry = getTelemetryData();
+
   const payload = {
     status: "ok",
-    total_runs: telemetryStore.totalRuns,
+    total_runs: telemetry.totalRuns,
     runs_by_mode: {
-      public: telemetryStore.publicRuns,
-      trial: telemetryStore.trialRuns,
-      licensed: telemetryStore.licensedRuns,
+      public: telemetry.publicRuns,
+      trial: telemetry.trialRuns,
+      licensed: telemetry.licensedRuns,
     },
     active_trials_count: trials.filter((t) => !t.expired).length,
     trials,
-    recent_runs: telemetryStore.recentRuns,
+    recent_runs: telemetry.recentRuns,
   };
 
   const wantsHtml =
@@ -207,7 +263,7 @@ app.get(["/stats", "/v1/telemetry/stats"], (req: Request, res: Response) => {
           : trials
               .map(
                 (t) => `<tr>
-            <td><code>${t.instanceName}</code></td>
+            <td><code>${escapeHtml(t.instanceName)}</code></td>
             <td>${t.createdAt.slice(0, 10)}</td>
             <td>${t.daysRemaining} days</td>
             <td><span class="badge ${t.expired ? "badge-trial" : "badge-licensed"}">${t.expired ? "Expired" : "Active"}</span></td>
@@ -236,9 +292,9 @@ app.get(["/stats", "/v1/telemetry/stats"], (req: Request, res: Response) => {
               .map(
                 (r) => `<tr>
             <td>${r.timestamp.replace("T", " ").slice(0, 19)}</td>
-            <td><code>${r.repo}</code></td>
-            <td><span class="badge badge-${r.mode}">${r.mode}</span></td>
-            <td>${r.version}</td>
+            <td><code>${escapeHtml(r.repo)}</code></td>
+            <td><span class="badge badge-${escapeHtml(r.mode)}">${escapeHtml(r.mode)}</span></td>
+            <td>${escapeHtml(r.version || "")}</td>
           </tr>`
               )
               .join("")
@@ -268,12 +324,11 @@ app.post("/v1/licenses/trial", (req: Request, res: Response) => {
   }
 
   const normalized = instanceName.toLowerCase();
-  let record = trialStore.get(normalized);
+  let record = getTrialRecord(normalized);
   const now = Date.now();
 
   if (!record) {
-    record = { instanceName: normalized, createdAt: now };
-    trialStore.set(normalized, record);
+    record = createTrialRecord(normalized);
   }
 
   recordRun({ mode: "trial", repo: normalized, version: req.body.version });

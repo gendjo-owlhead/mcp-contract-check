@@ -31775,6 +31775,7 @@ var github = __toESM(require_github(), 1);
 // ../mcp-contract-check/dist/checker.js
 import fs2 from "node:fs";
 import path2 from "node:path";
+import { fileURLToPath } from "node:url";
 
 // ../mcp-contract-check/node_modules/zod/v4/core/util.js
 var util_exports = {};
@@ -44741,12 +44742,13 @@ function validateJsonSchema(schema, data) {
     return { valid: true, errors: [] };
   }
   try {
-    const validate2 = ajv.compile(schema);
-    const valid = validate2(data);
+    const valid = ajv.validate(schema, data);
     if (!valid) {
-      const errors = (validate2.errors ?? []).map((err) => `${err.instancePath || "/"} ${err.message}`.trim());
+      const errors = (ajv.errors ?? []).map((err) => `${err.instancePath || "/"} ${err.message}`.trim());
+      ajv.removeSchema();
       return { valid: false, errors };
     }
+    ajv.removeSchema();
     return { valid: true, errors: [] };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
@@ -44755,6 +44757,9 @@ function validateJsonSchema(schema, data) {
 }
 
 // ../mcp-contract-check/dist/checker.js
+var __filename = fileURLToPath(import.meta.url);
+var __dirname = path2.dirname(__filename);
+var pkg = JSON.parse(fs2.readFileSync(path2.resolve(__dirname, "../package.json"), "utf-8"));
 function extractOutputData(result) {
   if (result.structuredContent !== void 0) {
     return result.structuredContent;
@@ -44790,6 +44795,27 @@ Case: ${f.caseFile}
 Expected: ${f.expected}
 Actual: ${f.actual}`).join("\n\n");
 }
+function createErrorSummary(tool, caseFile, expected, actual) {
+  return {
+    success: false,
+    totalCases: 0,
+    passedCases: 0,
+    failedCases: 1,
+    results: [
+      {
+        tool,
+        caseFile,
+        expected,
+        actual,
+        passed: false
+      }
+    ],
+    report: `Tool: ${tool}
+Case: ${caseFile}
+Expected: ${expected}
+Actual: ${actual}`
+  };
+}
 async function runContractCheck(options) {
   const { casesDir = "cases", timeoutMs = 3e4 } = options;
   const results = [];
@@ -44802,25 +44828,7 @@ async function runContractCheck(options) {
     try {
       urlObj = new URL(options.url);
     } catch {
-      return {
-        success: false,
-        totalCases: 0,
-        passedCases: 0,
-        failedCases: 1,
-        results: [
-          {
-            tool: "(server)",
-            caseFile: "(none)",
-            expected: "valid server URL",
-            actual: `Invalid URL: ${options.url}`,
-            passed: false
-          }
-        ],
-        report: `Tool: (server)
-Case: (none)
-Expected: valid server URL
-Actual: Invalid URL: ${options.url}`
-      };
+      return createErrorSummary("(server)", "(none)", "valid server URL", `Invalid URL: ${options.url}`);
     }
     const transportType = options.transport || "auto";
     useStreamableHttp = transportType === "streamable-http" || transportType === "auto" && !urlObj.pathname.endsWith("/sse");
@@ -44839,25 +44847,7 @@ Actual: Invalid URL: ${options.url}`
       parsed = parseCommandLine(options.command);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      return {
-        success: false,
-        totalCases: 0,
-        passedCases: 0,
-        failedCases: 1,
-        results: [
-          {
-            tool: "(server)",
-            caseFile: "(none)",
-            expected: "valid server command",
-            actual: message,
-            passed: false
-          }
-        ],
-        report: `Tool: (server)
-Case: (none)
-Expected: valid server command
-Actual: ${message}`
-      };
+      return createErrorSummary("(server)", "(none)", "valid server command", message);
     }
     const stdioTransport = new StdioClientTransport({
       command: parsed.command,
@@ -44876,27 +44866,9 @@ ${raw}` : "";
     };
     transport = stdioTransport;
   } else {
-    return {
-      success: false,
-      totalCases: 0,
-      passedCases: 0,
-      failedCases: 1,
-      results: [
-        {
-          tool: "(server)",
-          caseFile: "(none)",
-          expected: "server command or URL",
-          actual: "Missing both command and url options",
-          passed: false
-        }
-      ],
-      report: `Tool: (server)
-Case: (none)
-Expected: server command or URL
-Actual: Missing both command and url options`
-    };
+    return createErrorSummary("(server)", "(none)", "server command or URL", "Missing both command and url options");
   }
-  const client = new Client({ name: "mcp-contract-check", version: "1.1.0" }, { capabilities: {} });
+  const client = new Client({ name: "mcp-contract-check", version: pkg.version || "1.1.0" }, { capabilities: {} });
   try {
     try {
       await client.connect(transport);
@@ -44904,25 +44876,7 @@ Actual: Missing both command and url options`
       const message = err instanceof Error ? err.message : String(err);
       const stderrLog = getStderrLog();
       const connExpected = options.url ? useStreamableHttp ? "successful connection over Streamable HTTP" : "successful connection over SSE" : "successful connection over stdio";
-      return {
-        success: false,
-        totalCases: 0,
-        passedCases: 0,
-        failedCases: 1,
-        results: [
-          {
-            tool: "(server)",
-            caseFile: "(none)",
-            expected: connExpected,
-            actual: `failed to connect to server: ${message}${stderrLog}`,
-            passed: false
-          }
-        ],
-        report: `Tool: (server)
-Case: (none)
-Expected: ${connExpected}
-Actual: failed to connect to server: ${message}${stderrLog}`
-      };
+      return createErrorSummary("(server)", "(none)", connExpected, `failed to connect to server: ${message}${stderrLog}`);
     }
     let tools = [];
     try {
@@ -44930,25 +44884,7 @@ Actual: failed to connect to server: ${message}${stderrLog}`
       tools = listRes.tools ?? [];
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
-      return {
-        success: false,
-        totalCases: 0,
-        passedCases: 0,
-        failedCases: 1,
-        results: [
-          {
-            tool: "(server)",
-            caseFile: "(none)",
-            expected: "successful listTools response",
-            actual: `failed to list tools: ${message}`,
-            passed: false
-          }
-        ],
-        report: `Tool: (server)
-Case: (none)
-Expected: successful listTools response
-Actual: failed to list tools: ${message}`
-      };
+      return createErrorSummary("(server)", "(none)", "successful listTools response", `failed to list tools: ${message}`);
     }
     if (options.saveContract) {
       const snapshot = ContractDiff.createSnapshot(tools);
@@ -44962,25 +44898,7 @@ Actual: failed to list tools: ${message}`
     if (options.baseline) {
       const baselinePath = path2.resolve(process.cwd(), options.baseline);
       if (!fs2.existsSync(baselinePath)) {
-        return {
-          success: false,
-          totalCases: 0,
-          passedCases: 0,
-          failedCases: 1,
-          results: [
-            {
-              tool: "(baseline)",
-              caseFile: options.baseline,
-              expected: "existing baseline file",
-              actual: `baseline snapshot not found at ${options.baseline}`,
-              passed: false
-            }
-          ],
-          report: `Tool: (baseline)
-Case: ${options.baseline}
-Expected: existing baseline file
-Actual: baseline snapshot not found at ${options.baseline}`
-        };
+        return createErrorSummary("(baseline)", options.baseline, "existing baseline file", `baseline snapshot not found at ${options.baseline}`);
       }
       let baselineSnapshot;
       try {
@@ -44988,25 +44906,7 @@ Actual: baseline snapshot not found at ${options.baseline}`
         baselineSnapshot = JSON.parse(raw);
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        return {
-          success: false,
-          totalCases: 0,
-          passedCases: 0,
-          failedCases: 1,
-          results: [
-            {
-              tool: "(baseline)",
-              caseFile: options.baseline,
-              expected: "valid JSON baseline snapshot",
-              actual: `failed to parse baseline JSON: ${message}`,
-              passed: false
-            }
-          ],
-          report: `Tool: (baseline)
-Case: ${options.baseline}
-Expected: valid JSON baseline snapshot
-Actual: failed to parse baseline JSON: ${message}`
-        };
+        return createErrorSummary("(baseline)", options.baseline, "valid JSON baseline snapshot", `failed to parse baseline JSON: ${message}`);
       }
       diffResult = ContractDiff.compare(baselineSnapshot, tools);
       if (!diffResult.compatible) {
@@ -45185,10 +45085,10 @@ async function checkTrial(options) {
     const res = await fetchFn(trialUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
         Accept: "application/json"
       },
-      body: `instance_name=${encodeURIComponent(instanceName)}`,
+      body: JSON.stringify({ instance_name: instanceName }),
       signal: AbortSignal.timeout(timeoutMs)
     });
     if (res.status === 200) {
@@ -45253,10 +45153,10 @@ async function verifyLicense(options) {
     validateRes = await fetchFn(validateUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
         Accept: "application/json"
       },
-      body: `license_key=${encodeURIComponent(cleanKey)}`,
+      body: JSON.stringify({ license_key: cleanKey }),
       signal: AbortSignal.timeout(timeoutMs)
     });
   } catch (err) {
@@ -45296,70 +45196,66 @@ async function verifyLicense(options) {
       error: `Failed to parse license validation response: ${message}`
     };
   }
-  const instanceObj = validateData.instance && typeof validateData.instance === "object" ? validateData.instance : null;
-  if (validateData.valid === true && instanceObj !== null && (!instanceObj.name || instanceObj.name === instanceName)) {
-    return { valid: true };
-  }
-  if (validateData.valid === false || instanceObj === null || instanceObj.name && instanceObj.name !== instanceName) {
-    let activateRes;
-    try {
-      activateRes = await fetchFn(activateUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "application/json"
-        },
-        body: `license_key=${encodeURIComponent(cleanKey)}&instance_name=${encodeURIComponent(instanceName)}`,
-        signal: AbortSignal.timeout(timeoutMs)
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (failOpen) {
-        return {
-          valid: true,
-          failOpen: true,
-          warning: `Failed to contact license server for activation (${message}). Failing open to avoid blocking CI.`
-        };
-      }
-      return {
-        valid: false,
-        error: `License activation failed: ${message}`
-      };
-    }
-    if (activateRes.status !== 200) {
-      if (failOpen && activateRes.status >= 500) {
-        return {
-          valid: true,
-          failOpen: true,
-          warning: `License server returned status ${activateRes.status}. Failing open to avoid blocking CI.`
-        };
-      }
-      return {
-        valid: false,
-        error: `License activation failed: server returned status ${activateRes.status}`
-      };
-    }
-    let activateData;
-    try {
-      activateData = await activateRes.json();
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      return {
-        valid: false,
-        error: `Failed to parse license activation response: ${message}`
-      };
-    }
-    if (activateData.valid === true) {
+  if (validateData.valid === true) {
+    const instanceMatches = !validateData.instance?.name || validateData.instance.name === instanceName;
+    if (instanceMatches) {
       return { valid: true };
+    }
+  }
+  let activateRes;
+  try {
+    activateRes = await fetchFn(activateUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json"
+      },
+      body: JSON.stringify({ license_key: cleanKey, instance_name: instanceName }),
+      signal: AbortSignal.timeout(timeoutMs)
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (failOpen) {
+      return {
+        valid: true,
+        failOpen: true,
+        warning: `Failed to contact license server for activation (${message}). Failing open to avoid blocking CI.`
+      };
     }
     return {
       valid: false,
-      error: "License activation failed: license key is not valid"
+      error: `License activation failed: ${message}`
     };
+  }
+  if (activateRes.status !== 200) {
+    if (failOpen && activateRes.status >= 500) {
+      return {
+        valid: true,
+        failOpen: true,
+        warning: `License server returned status ${activateRes.status}. Failing open to avoid blocking CI.`
+      };
+    }
+    return {
+      valid: false,
+      error: `License activation failed: server returned status ${activateRes.status}`
+    };
+  }
+  let activateData;
+  try {
+    activateData = await activateRes.json();
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      valid: false,
+      error: `Failed to parse license activation response: ${message}`
+    };
+  }
+  if (activateData.valid === true) {
+    return { valid: true };
   }
   return {
     valid: false,
-    error: "License key is invalid"
+    error: validateData.error || "License activation failed: license key is not valid"
   };
 }
 

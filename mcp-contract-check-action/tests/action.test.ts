@@ -113,7 +113,7 @@ describe("mcp-contract-check-action", () => {
       "https://mcp-license-service.onrender.com/v1/licenses/trial",
       expect.objectContaining({
         method: "POST",
-        body: "instance_name=private%2Frepo",
+        body: JSON.stringify({ instance_name: "private/repo" }),
       })
     );
     expect(failedMessage).toBeNull();
@@ -161,7 +161,7 @@ describe("mcp-contract-check-action", () => {
       "https://mcp-license-service.onrender.com/v1/licenses/validate",
       expect.objectContaining({
         method: "POST",
-        body: "license_key=valid-key",
+        body: JSON.stringify({ license_key: "valid-key" }),
       })
     );
     expect(failedMessage).toBeNull();
@@ -245,7 +245,7 @@ describe("mcp-contract-check-action", () => {
     expect(outputs["compatible"]).toBe("true");
   });
 
-  it("private repo, activate required and activate returns valid:true: check runs", async () => {
+  it("private repo, validate returns valid:true but instance name mismatch calls activate", async () => {
     mockPayload.repository = { private: true, full_name: "private/repo" };
     inputs["license-key"] = "key-needs-activation";
     inputs["command"] = `node "${demoServerPath}" --fixed`;
@@ -255,11 +255,11 @@ describe("mcp-contract-check-action", () => {
       .fn()
       .mockResolvedValueOnce({
         status: 200,
-        json: async () => ({ valid: true, instance: null }),
+        json: async () => ({ valid: true, instance: { name: "other/repo" } }),
       })
       .mockResolvedValueOnce({
         status: 200,
-        json: async () => ({ valid: true, instance: { id: "new-inst" } }),
+        json: async () => ({ valid: true, instance: { name: "private/repo" } }),
       });
 
     await run(mockFetch as unknown as typeof fetch);
@@ -275,7 +275,7 @@ describe("mcp-contract-check-action", () => {
       "https://mcp-license-service.onrender.com/v1/licenses/activate",
       expect.objectContaining({
         method: "POST",
-        body: `license_key=key-needs-activation&instance_name=${encodeURIComponent("private/repo")}`,
+        body: JSON.stringify({ license_key: "key-needs-activation", instance_name: "private/repo" }),
       })
     );
     expect(failedMessage).toBeNull();

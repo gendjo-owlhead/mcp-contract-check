@@ -47,10 +47,10 @@ export async function checkTrial(
     const res = await fetchFn(trialUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: `instance_name=${encodeURIComponent(instanceName)}`,
+      body: JSON.stringify({ instance_name: instanceName }),
       signal: AbortSignal.timeout(timeoutMs),
     });
 
@@ -138,10 +138,10 @@ export async function verifyLicense(
     validateRes = await fetchFn(validateUrl, {
       method: "POST",
       headers: {
-        "Content-Type": "application/x-www-form-urlencoded",
+        "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: `license_key=${encodeURIComponent(cleanKey)}`,
+      body: JSON.stringify({ license_key: cleanKey }),
       signal: AbortSignal.timeout(timeoutMs),
     });
   } catch (err: unknown) {
@@ -173,7 +173,7 @@ export async function verifyLicense(
     };
   }
 
-  let validateData: { valid?: boolean; instance?: unknown };
+  let validateData: { valid?: boolean; instance?: { name?: string }, error?: string };
   try {
     validateData = (await validateRes.json()) as typeof validateData;
   } catch (err: unknown) {
@@ -184,85 +184,71 @@ export async function verifyLicense(
     };
   }
 
-  const instanceObj =
-    validateData.instance && typeof validateData.instance === "object"
-      ? (validateData.instance as { id?: string; name?: string })
-      : null;
-
-  // If valid is true and instance matches instanceName (or instance has no name set yet)
-  if (
-    validateData.valid === true &&
-    instanceObj !== null &&
-    (!instanceObj.name || instanceObj.name === instanceName)
-  ) {
-    return { valid: true };
-  }
-
-  // If valid is false, instance is null, or instance is for another repo, POST to activate
-  if (validateData.valid === false || instanceObj === null || (instanceObj.name && instanceObj.name !== instanceName)) {
-    let activateRes: Response;
-    try {
-      activateRes = await fetchFn(activateUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "application/json",
-        },
-        body: `license_key=${encodeURIComponent(cleanKey)}&instance_name=${encodeURIComponent(instanceName)}`,
-        signal: AbortSignal.timeout(timeoutMs),
-      });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (failOpen) {
-        return {
-          valid: true,
-          failOpen: true,
-          warning: `Failed to contact license server for activation (${message}). Failing open to avoid blocking CI.`,
-        };
-      }
-      return {
-        valid: false,
-        error: `License activation failed: ${message}`,
-      };
-    }
-
-    if (activateRes.status !== 200) {
-      if (failOpen && activateRes.status >= 500) {
-        return {
-          valid: true,
-          failOpen: true,
-          warning: `License server returned status ${activateRes.status}. Failing open to avoid blocking CI.`,
-        };
-      }
-      return {
-        valid: false,
-        error: `License activation failed: server returned status ${activateRes.status}`,
-      };
-    }
-
-    let activateData: { valid?: boolean };
-    try {
-      activateData = (await activateRes.json()) as typeof activateData;
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      return {
-        valid: false,
-        error: `Failed to parse license activation response: ${message}`,
-      };
-    }
-
-    if (activateData.valid === true) {
+  if (validateData.valid === true) {
+    const instanceMatches = !validateData.instance?.name || validateData.instance.name === instanceName;
+    if (instanceMatches) {
       return { valid: true };
     }
+  }
 
+  // Only call activate if validation failed (to register) or if instance didn't match (to re-bind if allowed)
+  let activateRes: Response;
+  try {
+    activateRes = await fetchFn(activateUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify({ license_key: cleanKey, instance_name: instanceName }),
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (failOpen) {
+      return {
+        valid: true,
+        failOpen: true,
+        warning: `Failed to contact license server for activation (${message}). Failing open to avoid blocking CI.`,
+      };
+    }
     return {
       valid: false,
-      error: "License activation failed: license key is not valid",
+      error: `License activation failed: ${message}`,
     };
+  }
+
+  if (activateRes.status !== 200) {
+    if (failOpen && activateRes.status >= 500) {
+      return {
+        valid: true,
+        failOpen: true,
+        warning: `License server returned status ${activateRes.status}. Failing open to avoid blocking CI.`,
+      };
+    }
+    return {
+      valid: false,
+      error: `License activation failed: server returned status ${activateRes.status}`,
+    };
+  }
+
+  let activateData: { valid?: boolean };
+  try {
+    activateData = (await activateRes.json()) as typeof activateData;
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    return {
+      valid: false,
+      error: `Failed to parse license activation response: ${message}`,
+    };
+  }
+
+  if (activateData.valid === true) {
+    return { valid: true };
   }
 
   return {
     valid: false,
-    error: "License key is invalid",
+    error: validateData.error || "License activation failed: license key is not valid",
   };
 }

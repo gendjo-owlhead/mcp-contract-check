@@ -14,12 +14,13 @@ export function validateJsonSchema(schema, data) {
         return { valid: true, errors: [] };
     }
     try {
-        const validate = ajv.compile(schema);
-        const valid = validate(data);
+        const valid = ajv.validate(schema, data);
         if (!valid) {
-            const errors = (validate.errors ?? []).map((err) => `${err.instancePath || "/"} ${err.message}`.trim());
+            const errors = (ajv.errors ?? []).map((err) => `${err.instancePath || "/"} ${err.message}`.trim());
+            ajv.removeSchema(); // Clear compiled schemas to prevent memory leaks
             return { valid: false, errors };
         }
+        ajv.removeSchema(); // Clear compiled schemas to prevent memory leaks
         return { valid: true, errors: [] };
     }
     catch (err) {
