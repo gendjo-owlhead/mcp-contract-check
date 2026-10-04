@@ -5,10 +5,33 @@
   "type": "module",
   "main": "dist/index.js",
   "bin": {
+    "mcp-contract-check": "dist/cli.js",
     "mcp-check": "dist/cli.js"
   },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gendjo-owlhead/mcp-contract-check.git",
+    "directory": "mcp-contract-check"
+  },
+  "homepage": "https://github.com/gendjo-owlhead/mcp-contract-check#readme",
+  "license": "MIT",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "contract-testing",
+    "schema-validation",
+    "fuzzing",
+    "claude",
+    "testing"
+  ],
   "scripts": {
     "build": "tsc",
+    "prepublishOnly": "npm run build && chmod +x dist/cli.js",
     "test": "vitest run"
   },
   "dependencies": {
