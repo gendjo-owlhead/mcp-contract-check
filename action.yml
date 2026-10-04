@@ -1,6 +1,6 @@
 name: MCP contract check
 description: "Automated contract testing, schema fuzzing, and breaking change detection for Model Context Protocol (MCP) servers."
-author: gendzaj
+author: gendjo-owlhead
 inputs:
   command:
     description: "The stdio server command"
