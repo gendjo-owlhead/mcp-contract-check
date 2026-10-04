@@ -22,7 +22,7 @@ app.get("/health", (_req: Request, res: Response) => {
 export const CHECKOUT_URL = "https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00";
 export const LIFETIME_CHECKOUT_URL =
   process.env.STRIPE_LIFETIME_CHECKOUT_URL ||
-  "https://buy.stripe.com/14A28sgEM0kAdDm4RI0oM00";
+  "https://buy.stripe.com/bJe7sMgEM0kA8j20Bs0oM01";
 export const TRIAL_DURATION_DAYS = 14;
 export const TRIAL_DURATION_MS = TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000;
 
