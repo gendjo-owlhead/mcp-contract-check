@@ -271,4 +271,37 @@ describe("Express API Endpoints", () => {
     expect(res.status).toBe(400);
     expect(res.body.valid).toBe(false);
   });
+
+  it("POST /v1/telemetry/ping records execution and increments stats", async () => {
+    const res = await request(app)
+      .post("/v1/telemetry/ping")
+      .send({ mode: "public", repo: "test-user/my-mcp", version: "1.1.0" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.totalRuns).toBeGreaterThanOrEqual(1);
+  });
+
+  it("GET /stats returns JSON metrics", async () => {
+    const res = await request(app)
+      .get("/stats")
+      .set("Accept", "application/json");
+
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("ok");
+    expect(res.body.total_runs).toBeGreaterThanOrEqual(1);
+    expect(res.body.runs_by_mode).toBeDefined();
+    expect(Array.isArray(res.body.recent_runs)).toBe(true);
+  });
+
+  it("GET /stats returns HTML dashboard for browser requests", async () => {
+    const res = await request(app)
+      .get("/stats")
+      .set("Accept", "text/html");
+
+    expect(res.status).toBe(200);
+    expect(res.text).toContain("<!DOCTYPE html>");
+    expect(res.text).toContain("MCP Contract Check Telemetry");
+  });
 });
+

@@ -44629,7 +44629,27 @@ function parseHeaders(raw) {
   }
   return Object.keys(result).length > 0 ? result : void 0;
 }
-async function run(customFetch) {
+async function sendTelemetryPing(options) {
+  try {
+    const defaultUrl = "https://mcp-license-service.onrender.com";
+    const baseUrl = (options.serverUrl || process.env.MCP_LICENSE_SERVER_URL || defaultUrl).replace(/\/+$/, "");
+    const fetcher = options.fetchFn || fetch;
+    await fetcher(`${baseUrl}/v1/telemetry/ping`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        mode: options.mode,
+        repo: options.repo,
+        version: options.version || "1.1.0"
+      }),
+      signal: AbortSignal.timeout(3e3)
+    });
+  } catch {
+  }
+}
+async function run(customFetch, telemetryFetch) {
   try {
     let isPrivate = false;
     if (github.context.payload?.repository?.private !== void 0) {
@@ -44649,11 +44669,22 @@ async function run(customFetch) {
         }
       }
     }
+    const repoPayload = github.context.payload?.repository;
+    const instanceName = repoPayload?.full_name || (github.context.repo.owner ? `${github.context.repo.owner}/${github.context.repo.repo}` : "unknown");
+    const serverUrl = core.getInput("license-server-url") || process.env.MCP_LICENSE_SERVER_URL;
+    const licenseKey = core.getInput("license-key");
+    const runMode = isPrivate ? licenseKey ? "licensed" : "trial" : "public";
+    const effectiveTelemetryFetch = telemetryFetch || (process.env.NODE_ENV !== "test" ? customFetch || fetch : void 0);
+    if (effectiveTelemetryFetch) {
+      await sendTelemetryPing({
+        serverUrl: serverUrl || void 0,
+        mode: runMode,
+        repo: instanceName,
+        version: "1.1.0",
+        fetchFn: effectiveTelemetryFetch
+      });
+    }
     if (isPrivate) {
-      const licenseKey = core.getInput("license-key");
-      const repoPayload = github.context.payload?.repository;
-      const instanceName = repoPayload?.full_name || `${github.context.repo.owner}/${github.context.repo.repo}`;
-      const serverUrl = core.getInput("license-server-url") || process.env.MCP_LICENSE_SERVER_URL;
       if (!licenseKey) {
         const trialResult = await checkTrial({
           instanceName,

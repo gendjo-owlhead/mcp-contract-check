@@ -54,8 +54,8 @@ vi.mock("@actions/github", () => ({
   },
 }));
 
-// Import run and parseHeaders after mocks are set
-import { parseHeaders, run } from "../src/action.js";
+// Import run, sendTelemetryPing, and parseHeaders after mocks are set
+import { parseHeaders, run, sendTelemetryPing } from "../src/action.js";
 
 describe("mcp-contract-check-action", () => {
   beforeEach(() => {
@@ -276,4 +276,72 @@ describe("mcp-contract-check-action", () => {
     expect(outputs["passed"]).toBe(outputs["total"]);
     expect(outputs["compatible"]).toBe("true");
   });
+
+  it("sendTelemetryPing posts json to telemetry endpoint", async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      status: 200,
+      json: async () => ({ ok: true }),
+    });
+
+    await sendTelemetryPing({
+      mode: "public",
+      repo: "community/mcp-server",
+      version: "1.1.0",
+      fetchFn: mockFetch as any,
+    });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledWith(
+      "https://mcp-license-service.onrender.com/v1/telemetry/ping",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          mode: "public",
+          repo: "community/mcp-server",
+          version: "1.1.0",
+        }),
+      })
+    );
+  });
+
+  it("sendTelemetryPing handles network errors silently", async () => {
+    const mockFetch = vi.fn().mockRejectedValue(new Error("Network offline"));
+
+    await expect(
+      sendTelemetryPing({
+        mode: "trial",
+        repo: "private/corp",
+        fetchFn: mockFetch as any,
+      })
+    ).resolves.toBeUndefined();
+  });
+
+  it("run invokes telemetry ping when telemetryFetch is provided", async () => {
+    mockPayload.repository = { private: false, full_name: "public/awesome-mcp" };
+    inputs["command"] = `node "${demoServerPath}" --fixed`;
+    inputs["cases"] = demoCasesDir;
+
+    const mockLicenseFetch = vi.fn();
+    const mockTelemetryFetch = vi.fn().mockResolvedValue({
+      status: 200,
+      json: async () => ({ ok: true }),
+    });
+
+    await run(mockLicenseFetch as any, mockTelemetryFetch as any);
+
+    expect(mockTelemetryFetch).toHaveBeenCalledTimes(1);
+    expect(mockTelemetryFetch).toHaveBeenCalledWith(
+      "https://mcp-license-service.onrender.com/v1/telemetry/ping",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({
+          mode: "public",
+          repo: "public/awesome-mcp",
+          version: "1.1.0",
+        }),
+      })
+    );
+    expect(failedMessage).toBeNull();
+  });
 });
+

@@ -41,8 +41,42 @@ export function parseHeaders(raw?: string): Record<string, string> | undefined {
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
+export async function sendTelemetryPing(options: {
+  serverUrl?: string;
+  mode: "public" | "trial" | "licensed";
+  repo: string;
+  version?: string;
+  fetchFn?: typeof fetch;
+}): Promise<void> {
+  try {
+    const defaultUrl = "https://mcp-license-service.onrender.com";
+    const baseUrl = (
+      options.serverUrl ||
+      process.env.MCP_LICENSE_SERVER_URL ||
+      defaultUrl
+    ).replace(/\/+$/, "");
+
+    const fetcher = options.fetchFn || fetch;
+    await fetcher(`${baseUrl}/v1/telemetry/ping`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        mode: options.mode,
+        repo: options.repo,
+        version: options.version || "1.1.0",
+      }),
+      signal: AbortSignal.timeout(3000),
+    });
+  } catch {
+    // Non-blocking telemetry must never fail CI
+  }
+}
+
 export async function run(
-  customFetch?: typeof fetch
+  customFetch?: typeof fetch,
+  telemetryFetch?: typeof fetch
 ): Promise<void> {
   try {
     let isPrivate = false;
@@ -64,17 +98,39 @@ export async function run(
       }
     }
 
+    const repoPayload = github.context.payload?.repository;
+    const instanceName =
+      repoPayload?.full_name ||
+      (github.context.repo.owner
+        ? `${github.context.repo.owner}/${github.context.repo.repo}`
+        : "unknown");
+
+    const serverUrl =
+      core.getInput("license-server-url") ||
+      process.env.MCP_LICENSE_SERVER_URL;
+
+    const licenseKey = core.getInput("license-key");
+    const runMode: "public" | "trial" | "licensed" = isPrivate
+      ? licenseKey
+        ? "licensed"
+        : "trial"
+      : "public";
+
+    const effectiveTelemetryFetch =
+      telemetryFetch ||
+      (process.env.NODE_ENV !== "test" ? customFetch || fetch : undefined);
+
+    if (effectiveTelemetryFetch) {
+      await sendTelemetryPing({
+        serverUrl: serverUrl || undefined,
+        mode: runMode,
+        repo: instanceName,
+        version: "1.1.0",
+        fetchFn: effectiveTelemetryFetch,
+      });
+    }
+
     if (isPrivate) {
-      const licenseKey = core.getInput("license-key");
-      const repoPayload = github.context.payload?.repository;
-      const instanceName =
-        repoPayload?.full_name ||
-        `${github.context.repo.owner}/${github.context.repo.repo}`;
-
-      const serverUrl =
-        core.getInput("license-server-url") ||
-        process.env.MCP_LICENSE_SERVER_URL;
-
       if (!licenseKey) {
         const trialResult = await checkTrial({
           instanceName,
