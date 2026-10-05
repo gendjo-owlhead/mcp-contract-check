@@ -32,3 +32,13 @@ jobs:
         with:
           command: "node mcp-check-demo/server.js --fixed"
           cases: "mcp-check-demo/cases"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Verify excel-mcp-server with schema fuzzing
+        run: |
+          git clone --depth 1 https://github.com/haris-musa/excel-mcp-server.git /tmp/excel-mcp-server
+          cd /tmp/excel-mcp-server
+          uv sync --locked
+          node "$GITHUB_WORKSPACE/mcp-contract-check/dist/cli.js" --command "uv run excel-mcp-server stdio" --fuzz
