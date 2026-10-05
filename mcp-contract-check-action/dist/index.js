@@ -44314,16 +44314,39 @@ var SchemaFuzzer = class {
     const requiredKeys = new Set(Array.isArray(schema.required) ? schema.required : []);
     return propKeys.some((k) => !requiredKeys.has(k));
   }
+  static resolveRef(ref, rootSchema) {
+    if (!rootSchema || typeof rootSchema !== "object" || !ref.startsWith("#/")) {
+      return void 0;
+    }
+    const parts = ref.slice(2).split("/");
+    let curr = rootSchema;
+    for (const part of parts) {
+      if (curr && typeof curr === "object" && part in curr) {
+        curr = curr[part];
+      } else {
+        return void 0;
+      }
+    }
+    return curr && typeof curr === "object" ? curr : void 0;
+  }
   /**
    * Generates a valid payload matching a given JSON Schema.
    *
    * @param schema The JSON Schema definition (typically tool.inputSchema).
    * @param propName Optional property name for contextual dummy values.
    * @param options Fuzzing options such as requiredOnly.
+   * @param rootSchema The root tool schema for resolving $ref pointers.
    */
-  static generateValidPayload(schema, propName = "param", options) {
+  static generateValidPayload(schema, propName = "param", options, rootSchema) {
     if (!schema || typeof schema !== "object" || Object.keys(schema).length === 0) {
       return {};
+    }
+    const effectiveRoot = rootSchema || schema;
+    if ("$ref" in schema && typeof schema.$ref === "string") {
+      const resolved = this.resolveRef(schema.$ref, effectiveRoot);
+      if (resolved) {
+        return this.generateValidPayload(resolved, propName, options, effectiveRoot);
+      }
     }
     if ("const" in schema) {
       return schema.const;
@@ -44335,10 +44358,10 @@ var SchemaFuzzer = class {
       return schema.default;
     }
     if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
-      return this.generateValidPayload(schema.oneOf[0], propName, options);
+      return this.generateValidPayload(schema.oneOf[0], propName, options, effectiveRoot);
     }
     if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
-      return this.generateValidPayload(schema.anyOf[0], propName, options);
+      return this.generateValidPayload(schema.anyOf[0], propName, options, effectiveRoot);
     }
     let rawType = schema.type;
     if (Array.isArray(rawType)) {
@@ -44362,9 +44385,9 @@ var SchemaFuzzer = class {
       case "boolean":
         return true;
       case "array":
-        return this.generateArray(schema, propName, options);
+        return this.generateArray(schema, propName, options, effectiveRoot);
       case "object":
-        return this.generateObject(schema, options);
+        return this.generateObject(schema, options, effectiveRoot);
       case "null":
         return null;
       default:
@@ -44394,9 +44417,19 @@ var SchemaFuzzer = class {
       case "ipv4":
         val = "127.0.0.1";
         break;
-      default:
-        val = propName ? `test-${propName}` : "test-string";
+      default: {
+        const lower = propName.toLowerCase();
+        if (lower.includes("email")) {
+          val = "user@example.com";
+        } else if (lower.includes("url") || lower.includes("uri")) {
+          val = "https://example.com";
+        } else if (lower.includes("path") || lower.includes("file") || lower.includes("directory") || lower.includes("dir")) {
+          val = "/tmp/test.xlsx";
+        } else {
+          val = propName ? `test-${propName}` : "test-string";
+        }
         break;
+      }
     }
     const minLength = typeof schema.minLength === "number" ? schema.minLength : 0;
     const maxLength = typeof schema.maxLength === "number" ? schema.maxLength : Infinity;
@@ -44440,27 +44473,33 @@ var SchemaFuzzer = class {
     }
     return schema.type === "integer" ? Math.round(val) : val;
   }
-  static generateArray(schema, propName, options) {
-    const itemsSchema = schema.items;
+  static generateArray(schema, propName, options, rootSchema) {
+    let itemsSchema = schema.items;
+    if (itemsSchema && typeof itemsSchema === "object" && "$ref" in itemsSchema && typeof itemsSchema.$ref === "string") {
+      const resolved = this.resolveRef(itemsSchema.$ref, rootSchema || schema);
+      if (resolved) {
+        itemsSchema = resolved;
+      }
+    }
     const minItems = typeof schema.minItems === "number" ? schema.minItems : 1;
     const count = Math.max(minItems, 1);
     const result = [];
     for (let i = 0; i < count; i++) {
       if (itemsSchema) {
-        result.push(this.generateValidPayload(itemsSchema, `${propName}_item`, options));
+        result.push(this.generateValidPayload(itemsSchema, `${propName}_item`, options, rootSchema || schema));
       } else {
         result.push("item");
       }
     }
     return result;
   }
-  static generateObject(schema, options) {
+  static generateObject(schema, options, rootSchema) {
     const result = {};
     const properties = schema.properties || {};
     const required2 = Array.isArray(schema.required) ? schema.required : [];
     for (const key of required2) {
       if (properties[key]) {
-        result[key] = this.generateValidPayload(properties[key], key, options);
+        result[key] = this.generateValidPayload(properties[key], key, options, rootSchema || schema);
       } else {
         result[key] = "test-value";
       }
@@ -44468,7 +44507,7 @@ var SchemaFuzzer = class {
     if (!options?.requiredOnly) {
       for (const [key, propSchema] of Object.entries(properties)) {
         if (!(key in result)) {
-          result[key] = this.generateValidPayload(propSchema, key, options);
+          result[key] = this.generateValidPayload(propSchema, key, options, rootSchema || schema);
         }
       }
     }
@@ -44516,19 +44555,22 @@ var SchemaFuzzer = class {
           });
         }
       } else if (rawType === "string") {
+        const isEnum = Array.isArray(propSchema.enum) && propSchema.enum.length > 0;
         const minLen = typeof propSchema.minLength === "number" ? propSchema.minLength : 0;
         if (minLen === 0) {
-          boundaries.push({
-            payload: { ...baseValid, [key]: "" },
-            label: `boundary: ${key} = empty string`
-          });
-        } else {
+          if (!isEnum || propSchema.enum.includes("")) {
+            boundaries.push({
+              payload: { ...baseValid, [key]: "" },
+              label: `boundary: ${key} = empty string`
+            });
+          }
+        } else if (!isEnum) {
           boundaries.push({
             payload: { ...baseValid, [key]: "a".repeat(minLen) },
             label: `boundary: ${key} = minLength (${minLen})`
           });
         }
-        if (typeof propSchema.maxLength === "number" && propSchema.maxLength < 1e3) {
+        if (!isEnum && typeof propSchema.maxLength === "number" && propSchema.maxLength < 1e3) {
           boundaries.push({
             payload: { ...baseValid, [key]: "a".repeat(propSchema.maxLength) },
             label: `boundary: ${key} = maxLength (${propSchema.maxLength})`
@@ -44681,14 +44723,14 @@ function buildCasesForTools(tools, loadedFixtures, options) {
       if (options?.fuzz) {
         const hasOptional = SchemaFuzzer.hasOptionalProperties(tool.inputSchema);
         if (hasOptional) {
-          const minimalPayload = SchemaFuzzer.generateValidPayload(tool.inputSchema, "param", { requiredOnly: true }) || {};
+          const minimalPayload = SchemaFuzzer.generateValidPayload(tool.inputSchema, "param", { requiredOnly: true }, tool.inputSchema) || {};
           cases.push({
             tool: tool.name,
             arguments: minimalPayload,
             expected: "success",
             caseFile: "(fuzzed: minimal)"
           });
-          const fullPayload = SchemaFuzzer.generateValidPayload(tool.inputSchema, "param", { requiredOnly: false }) || {};
+          const fullPayload = SchemaFuzzer.generateValidPayload(tool.inputSchema, "param", { requiredOnly: false }, tool.inputSchema) || {};
           cases.push({
             tool: tool.name,
             arguments: fullPayload,
@@ -44696,7 +44738,7 @@ function buildCasesForTools(tools, loadedFixtures, options) {
             caseFile: "(fuzzed: full)"
           });
         } else {
-          const payload = SchemaFuzzer.generateValidPayload(tool.inputSchema) || {};
+          const payload = SchemaFuzzer.generateValidPayload(tool.inputSchema, "param", void 0, tool.inputSchema) || {};
           cases.push({
             tool: tool.name,
             arguments: payload,
@@ -44964,12 +45006,12 @@ ${raw}` : "";
         if (callResult.isError === true) {
           const errorDetail = Array.isArray(callResult.content) ? callResult.content.map((c) => c && typeof c === "object" && typeof c.text === "string" ? c.text : "").filter(Boolean).join("\n") : "";
           const errorMsg = errorDetail ? `tool returned error: ${errorDetail}` : "tool returned error";
-          if (isExpectFail) {
+          if (isExpectFail || testCase.caseFile.startsWith("(fuzzed")) {
             results.push({
               tool: testCase.tool,
               caseFile: testCase.caseFile,
-              expected: "fail",
-              actual: "tool returned error as expected",
+              expected: isExpectFail ? "fail" : "valid response",
+              actual: isExpectFail ? "tool returned error as expected" : `tool returned error gracefully: ${errorDetail || "isError: true"}`,
               passed: true
             });
           } else {

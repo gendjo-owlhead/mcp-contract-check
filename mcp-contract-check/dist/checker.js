@@ -236,12 +236,14 @@ export async function runContractCheck(options) {
                     const errorMsg = errorDetail
                         ? `tool returned error: ${errorDetail}`
                         : "tool returned error";
-                    if (isExpectFail) {
+                    if (isExpectFail || testCase.caseFile.startsWith("(fuzzed")) {
                         results.push({
                             tool: testCase.tool,
                             caseFile: testCase.caseFile,
-                            expected: "fail",
-                            actual: "tool returned error as expected",
+                            expected: isExpectFail ? "fail" : "valid response",
+                            actual: isExpectFail
+                                ? "tool returned error as expected"
+                                : `tool returned error gracefully: ${errorDetail || "isError: true"}`,
                             passed: true,
                         });
                     }

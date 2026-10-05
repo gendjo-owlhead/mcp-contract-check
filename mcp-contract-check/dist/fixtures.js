@@ -65,14 +65,14 @@ export function buildCasesForTools(tools, loadedFixtures, options) {
             if (options?.fuzz) {
                 const hasOptional = SchemaFuzzer.hasOptionalProperties(tool.inputSchema);
                 if (hasOptional) {
-                    const minimalPayload = (SchemaFuzzer.generateValidPayload(tool.inputSchema, "param", { requiredOnly: true }) || {});
+                    const minimalPayload = (SchemaFuzzer.generateValidPayload(tool.inputSchema, "param", { requiredOnly: true }, tool.inputSchema) || {});
                     cases.push({
                         tool: tool.name,
                         arguments: minimalPayload,
                         expected: "success",
                         caseFile: "(fuzzed: minimal)",
                     });
-                    const fullPayload = (SchemaFuzzer.generateValidPayload(tool.inputSchema, "param", { requiredOnly: false }) || {});
+                    const fullPayload = (SchemaFuzzer.generateValidPayload(tool.inputSchema, "param", { requiredOnly: false }, tool.inputSchema) || {});
                     cases.push({
                         tool: tool.name,
                         arguments: fullPayload,
@@ -81,7 +81,7 @@ export function buildCasesForTools(tools, loadedFixtures, options) {
                     });
                 }
                 else {
-                    const payload = (SchemaFuzzer.generateValidPayload(tool.inputSchema) || {});
+                    const payload = (SchemaFuzzer.generateValidPayload(tool.inputSchema, "param", undefined, tool.inputSchema) || {});
                     cases.push({
                         tool: tool.name,
                         arguments: payload,

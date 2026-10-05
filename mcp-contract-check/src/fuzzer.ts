@@ -22,20 +22,51 @@ export class SchemaFuzzer {
     return propKeys.some((k) => !requiredKeys.has(k));
   }
 
+  private static resolveRef(
+    ref: string,
+    rootSchema?: Record<string, unknown>
+  ): Record<string, unknown> | undefined {
+    if (!rootSchema || typeof rootSchema !== "object" || !ref.startsWith("#/")) {
+      return undefined;
+    }
+    const parts = ref.slice(2).split("/");
+    let curr: any = rootSchema;
+    for (const part of parts) {
+      if (curr && typeof curr === "object" && part in curr) {
+        curr = curr[part];
+      } else {
+        return undefined;
+      }
+    }
+    return curr && typeof curr === "object" ? curr : undefined;
+  }
+
   /**
    * Generates a valid payload matching a given JSON Schema.
    *
    * @param schema The JSON Schema definition (typically tool.inputSchema).
    * @param propName Optional property name for contextual dummy values.
    * @param options Fuzzing options such as requiredOnly.
+   * @param rootSchema The root tool schema for resolving $ref pointers.
    */
   public static generateValidPayload(
     schema?: Record<string, unknown> | null,
     propName = "param",
-    options?: FuzzPayloadOptions
+    options?: FuzzPayloadOptions,
+    rootSchema?: Record<string, unknown>
   ): unknown {
     if (!schema || typeof schema !== "object" || Object.keys(schema).length === 0) {
       return {};
+    }
+
+    const effectiveRoot = rootSchema || schema;
+
+    // Resolve $ref if present
+    if ("$ref" in schema && typeof schema.$ref === "string") {
+      const resolved = this.resolveRef(schema.$ref, effectiveRoot);
+      if (resolved) {
+        return this.generateValidPayload(resolved, propName, options, effectiveRoot);
+      }
     }
 
     // Explicit constant
@@ -55,10 +86,10 @@ export class SchemaFuzzer {
 
     // anyOf / oneOf: use the first variant
     if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
-      return this.generateValidPayload(schema.oneOf[0] as Record<string, unknown>, propName, options);
+      return this.generateValidPayload(schema.oneOf[0] as Record<string, unknown>, propName, options, effectiveRoot);
     }
     if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
-      return this.generateValidPayload(schema.anyOf[0] as Record<string, unknown>, propName, options);
+      return this.generateValidPayload(schema.anyOf[0] as Record<string, unknown>, propName, options, effectiveRoot);
     }
 
     // If type is an array of types, take the first non-null type
@@ -90,10 +121,10 @@ export class SchemaFuzzer {
         return true;
 
       case "array":
-        return this.generateArray(schema, propName, options);
+        return this.generateArray(schema, propName, options, effectiveRoot);
 
       case "object":
-        return this.generateObject(schema, options);
+        return this.generateObject(schema, options, effectiveRoot);
 
       case "null":
         return null;
@@ -130,9 +161,19 @@ export class SchemaFuzzer {
       case "ipv4":
         val = "127.0.0.1";
         break;
-      default:
-        val = propName ? `test-${propName}` : "test-string";
+      default: {
+        const lower = propName.toLowerCase();
+        if (lower.includes("email")) {
+          val = "user@example.com";
+        } else if (lower.includes("url") || lower.includes("uri")) {
+          val = "https://example.com";
+        } else if (lower.includes("path") || lower.includes("file") || lower.includes("directory") || lower.includes("dir")) {
+          val = "/tmp/test.xlsx";
+        } else {
+          val = propName ? `test-${propName}` : "test-string";
+        }
         break;
+      }
     }
 
     const minLength = typeof schema.minLength === "number" ? schema.minLength : 0;
@@ -189,9 +230,16 @@ export class SchemaFuzzer {
   private static generateArray(
     schema: Record<string, unknown>,
     propName: string,
-    options?: FuzzPayloadOptions
+    options?: FuzzPayloadOptions,
+    rootSchema?: Record<string, unknown>
   ): unknown[] {
-    const itemsSchema = schema.items as Record<string, unknown> | undefined;
+    let itemsSchema = schema.items as Record<string, unknown> | undefined;
+    if (itemsSchema && typeof itemsSchema === "object" && "$ref" in itemsSchema && typeof itemsSchema.$ref === "string") {
+      const resolved = this.resolveRef(itemsSchema.$ref, rootSchema || schema);
+      if (resolved) {
+        itemsSchema = resolved;
+      }
+    }
     const minItems = typeof schema.minItems === "number" ? schema.minItems : 1;
 
     const count = Math.max(minItems, 1);
@@ -199,7 +247,7 @@ export class SchemaFuzzer {
 
     for (let i = 0; i < count; i++) {
       if (itemsSchema) {
-        result.push(this.generateValidPayload(itemsSchema, `${propName}_item`, options));
+        result.push(this.generateValidPayload(itemsSchema, `${propName}_item`, options, rootSchema || schema));
       } else {
         result.push("item");
       }
@@ -210,7 +258,8 @@ export class SchemaFuzzer {
 
   private static generateObject(
     schema: Record<string, unknown>,
-    options?: FuzzPayloadOptions
+    options?: FuzzPayloadOptions,
+    rootSchema?: Record<string, unknown>
   ): Record<string, unknown> {
     const result: Record<string, unknown> = {};
     const properties = (schema.properties || {}) as Record<string, Record<string, unknown>>;
@@ -219,7 +268,7 @@ export class SchemaFuzzer {
     // First generate all required properties
     for (const key of required) {
       if (properties[key]) {
-        result[key] = this.generateValidPayload(properties[key], key, options);
+        result[key] = this.generateValidPayload(properties[key], key, options, rootSchema || schema);
       } else {
         result[key] = "test-value";
       }
@@ -229,7 +278,7 @@ export class SchemaFuzzer {
     if (!options?.requiredOnly) {
       for (const [key, propSchema] of Object.entries(properties)) {
         if (!(key in result)) {
-          result[key] = this.generateValidPayload(propSchema, key, options);
+          result[key] = this.generateValidPayload(propSchema, key, options, rootSchema || schema);
         }
       }
     }
@@ -283,19 +332,22 @@ export class SchemaFuzzer {
           });
         }
       } else if (rawType === "string") {
+        const isEnum = Array.isArray(propSchema.enum) && propSchema.enum.length > 0;
         const minLen = typeof propSchema.minLength === "number" ? propSchema.minLength : 0;
         if (minLen === 0) {
-          boundaries.push({
-            payload: { ...baseValid, [key]: "" },
-            label: `boundary: ${key} = empty string`,
-          });
-        } else {
+          if (!isEnum || (propSchema.enum as unknown[]).includes("")) {
+            boundaries.push({
+              payload: { ...baseValid, [key]: "" },
+              label: `boundary: ${key} = empty string`,
+            });
+          }
+        } else if (!isEnum) {
           boundaries.push({
             payload: { ...baseValid, [key]: "a".repeat(minLen) },
             label: `boundary: ${key} = minLength (${minLen})`,
           });
         }
-        if (typeof propSchema.maxLength === "number" && propSchema.maxLength < 1000) {
+        if (!isEnum && typeof propSchema.maxLength === "number" && propSchema.maxLength < 1000) {
           boundaries.push({
             payload: { ...baseValid, [key]: "a".repeat(propSchema.maxLength) },
             label: `boundary: ${key} = maxLength (${propSchema.maxLength})`,

@@ -14,16 +14,41 @@ export class SchemaFuzzer {
         const requiredKeys = new Set(Array.isArray(schema.required) ? schema.required : []);
         return propKeys.some((k) => !requiredKeys.has(k));
     }
+    static resolveRef(ref, rootSchema) {
+        if (!rootSchema || typeof rootSchema !== "object" || !ref.startsWith("#/")) {
+            return undefined;
+        }
+        const parts = ref.slice(2).split("/");
+        let curr = rootSchema;
+        for (const part of parts) {
+            if (curr && typeof curr === "object" && part in curr) {
+                curr = curr[part];
+            }
+            else {
+                return undefined;
+            }
+        }
+        return curr && typeof curr === "object" ? curr : undefined;
+    }
     /**
      * Generates a valid payload matching a given JSON Schema.
      *
      * @param schema The JSON Schema definition (typically tool.inputSchema).
      * @param propName Optional property name for contextual dummy values.
      * @param options Fuzzing options such as requiredOnly.
+     * @param rootSchema The root tool schema for resolving $ref pointers.
      */
-    static generateValidPayload(schema, propName = "param", options) {
+    static generateValidPayload(schema, propName = "param", options, rootSchema) {
         if (!schema || typeof schema !== "object" || Object.keys(schema).length === 0) {
             return {};
+        }
+        const effectiveRoot = rootSchema || schema;
+        // Resolve $ref if present
+        if ("$ref" in schema && typeof schema.$ref === "string") {
+            const resolved = this.resolveRef(schema.$ref, effectiveRoot);
+            if (resolved) {
+                return this.generateValidPayload(resolved, propName, options, effectiveRoot);
+            }
         }
         // Explicit constant
         if ("const" in schema) {
@@ -39,10 +64,10 @@ export class SchemaFuzzer {
         }
         // anyOf / oneOf: use the first variant
         if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
-            return this.generateValidPayload(schema.oneOf[0], propName, options);
+            return this.generateValidPayload(schema.oneOf[0], propName, options, effectiveRoot);
         }
         if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
-            return this.generateValidPayload(schema.anyOf[0], propName, options);
+            return this.generateValidPayload(schema.anyOf[0], propName, options, effectiveRoot);
         }
         // If type is an array of types, take the first non-null type
         let rawType = schema.type;
@@ -70,9 +95,9 @@ export class SchemaFuzzer {
             case "boolean":
                 return true;
             case "array":
-                return this.generateArray(schema, propName, options);
+                return this.generateArray(schema, propName, options, effectiveRoot);
             case "object":
-                return this.generateObject(schema, options);
+                return this.generateObject(schema, options, effectiveRoot);
             case "null":
                 return null;
             default:
@@ -102,9 +127,22 @@ export class SchemaFuzzer {
             case "ipv4":
                 val = "127.0.0.1";
                 break;
-            default:
-                val = propName ? `test-${propName}` : "test-string";
+            default: {
+                const lower = propName.toLowerCase();
+                if (lower.includes("email")) {
+                    val = "user@example.com";
+                }
+                else if (lower.includes("url") || lower.includes("uri")) {
+                    val = "https://example.com";
+                }
+                else if (lower.includes("path") || lower.includes("file") || lower.includes("directory") || lower.includes("dir")) {
+                    val = "/tmp/test.xlsx";
+                }
+                else {
+                    val = propName ? `test-${propName}` : "test-string";
+                }
                 break;
+            }
         }
         const minLength = typeof schema.minLength === "number" ? schema.minLength : 0;
         const maxLength = typeof schema.maxLength === "number" ? schema.maxLength : Infinity;
@@ -153,14 +191,20 @@ export class SchemaFuzzer {
         }
         return schema.type === "integer" ? Math.round(val) : val;
     }
-    static generateArray(schema, propName, options) {
-        const itemsSchema = schema.items;
+    static generateArray(schema, propName, options, rootSchema) {
+        let itemsSchema = schema.items;
+        if (itemsSchema && typeof itemsSchema === "object" && "$ref" in itemsSchema && typeof itemsSchema.$ref === "string") {
+            const resolved = this.resolveRef(itemsSchema.$ref, rootSchema || schema);
+            if (resolved) {
+                itemsSchema = resolved;
+            }
+        }
         const minItems = typeof schema.minItems === "number" ? schema.minItems : 1;
         const count = Math.max(minItems, 1);
         const result = [];
         for (let i = 0; i < count; i++) {
             if (itemsSchema) {
-                result.push(this.generateValidPayload(itemsSchema, `${propName}_item`, options));
+                result.push(this.generateValidPayload(itemsSchema, `${propName}_item`, options, rootSchema || schema));
             }
             else {
                 result.push("item");
@@ -168,14 +212,14 @@ export class SchemaFuzzer {
         }
         return result;
     }
-    static generateObject(schema, options) {
+    static generateObject(schema, options, rootSchema) {
         const result = {};
         const properties = (schema.properties || {});
         const required = Array.isArray(schema.required) ? schema.required : [];
         // First generate all required properties
         for (const key of required) {
             if (properties[key]) {
-                result[key] = this.generateValidPayload(properties[key], key, options);
+                result[key] = this.generateValidPayload(properties[key], key, options, rootSchema || schema);
             }
             else {
                 result[key] = "test-value";
@@ -185,7 +229,7 @@ export class SchemaFuzzer {
         if (!options?.requiredOnly) {
             for (const [key, propSchema] of Object.entries(properties)) {
                 if (!(key in result)) {
-                    result[key] = this.generateValidPayload(propSchema, key, options);
+                    result[key] = this.generateValidPayload(propSchema, key, options, rootSchema || schema);
                 }
             }
         }
@@ -234,20 +278,23 @@ export class SchemaFuzzer {
                 }
             }
             else if (rawType === "string") {
+                const isEnum = Array.isArray(propSchema.enum) && propSchema.enum.length > 0;
                 const minLen = typeof propSchema.minLength === "number" ? propSchema.minLength : 0;
                 if (minLen === 0) {
-                    boundaries.push({
-                        payload: { ...baseValid, [key]: "" },
-                        label: `boundary: ${key} = empty string`,
-                    });
+                    if (!isEnum || propSchema.enum.includes("")) {
+                        boundaries.push({
+                            payload: { ...baseValid, [key]: "" },
+                            label: `boundary: ${key} = empty string`,
+                        });
+                    }
                 }
-                else {
+                else if (!isEnum) {
                     boundaries.push({
                         payload: { ...baseValid, [key]: "a".repeat(minLen) },
                         label: `boundary: ${key} = minLength (${minLen})`,
                     });
                 }
-                if (typeof propSchema.maxLength === "number" && propSchema.maxLength < 1000) {
+                if (!isEnum && typeof propSchema.maxLength === "number" && propSchema.maxLength < 1000) {
                     boundaries.push({
                         payload: { ...baseValid, [key]: "a".repeat(propSchema.maxLength) },
                         label: `boundary: ${key} = maxLength (${propSchema.maxLength})`,

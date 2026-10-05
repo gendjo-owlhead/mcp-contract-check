@@ -85,7 +85,8 @@ export function buildCasesForTools(
           const minimalPayload = (SchemaFuzzer.generateValidPayload(
             tool.inputSchema,
             "param",
-            { requiredOnly: true }
+            { requiredOnly: true },
+            tool.inputSchema
           ) || {}) as Record<string, unknown>;
 
           cases.push({
@@ -98,7 +99,8 @@ export function buildCasesForTools(
           const fullPayload = (SchemaFuzzer.generateValidPayload(
             tool.inputSchema,
             "param",
-            { requiredOnly: false }
+            { requiredOnly: false },
+            tool.inputSchema
           ) || {}) as Record<string, unknown>;
 
           cases.push({
@@ -108,10 +110,12 @@ export function buildCasesForTools(
             caseFile: "(fuzzed: full)",
           });
         } else {
-          const payload = (SchemaFuzzer.generateValidPayload(tool.inputSchema) || {}) as Record<
-            string,
-            unknown
-          >;
+          const payload = (SchemaFuzzer.generateValidPayload(
+            tool.inputSchema,
+            "param",
+            undefined,
+            tool.inputSchema
+          ) || {}) as Record<string, unknown>;
           cases.push({
             tool: tool.name,
             arguments: payload,

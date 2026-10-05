@@ -10,14 +10,16 @@ export declare class SchemaFuzzer {
      * Checks whether the schema contains optional properties not listed in required.
      */
     static hasOptionalProperties(schema?: Record<string, unknown> | null): boolean;
+    private static resolveRef;
     /**
      * Generates a valid payload matching a given JSON Schema.
      *
      * @param schema The JSON Schema definition (typically tool.inputSchema).
      * @param propName Optional property name for contextual dummy values.
      * @param options Fuzzing options such as requiredOnly.
+     * @param rootSchema The root tool schema for resolving $ref pointers.
      */
-    static generateValidPayload(schema?: Record<string, unknown> | null, propName?: string, options?: FuzzPayloadOptions): unknown;
+    static generateValidPayload(schema?: Record<string, unknown> | null, propName?: string, options?: FuzzPayloadOptions, rootSchema?: Record<string, unknown>): unknown;
     private static generateString;
     private static generateNumber;
     private static generateArray;
