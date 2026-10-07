@@ -1,5 +1,8 @@
 # mcp-contract-check
 
+[![npm version](https://img.shields.io/npm/v/mcp-contract-check.svg?color=blue&logo=npm)](https://www.npmjs.com/package/mcp-contract-check)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+
 `mcp-contract-check` connects to Model Context Protocol (MCP) servers over stdio or remote HTTP Server-Sent Events (SSE), discovers registered tools, executes test cases or synthesized arguments, and validates responses against declared JSON Schemas.
 
 It also supports automatic schema fuzzing and breaking change detection against baseline contract snapshots.

@@ -1,5 +1,6 @@
 # MCP Contract Check
 
+[![npm](https://img.shields.io/npm/v/mcp-contract-check.svg?color=blue&logo=npm)](https://www.npmjs.com/package/mcp-contract-check)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 Automated tool contract testing, schema fuzzing, and breaking change detection for Model Context Protocol (MCP) servers in CI/CD.

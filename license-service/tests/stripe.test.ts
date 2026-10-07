@@ -257,7 +257,7 @@ describe("Express API Endpoints", () => {
   it("POST /v1/licenses/trial starts a 14-day trial", async () => {
     const res = await request(app)
       .post("/v1/licenses/trial")
-      .send({ instance_name: "test-org/private-repo" });
+      .send({ instance_name: `test-org/private-repo-${Date.now()}` });
 
     expect(res.status).toBe(200);
     expect(res.body.valid).toBe(true);
