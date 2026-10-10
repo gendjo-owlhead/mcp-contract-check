@@ -80,6 +80,20 @@ export class ContractDiff {
         const currProps = (currentSchema?.properties || {});
         const baseRequired = new Set(Array.isArray(baselineSchema?.required) ? baselineSchema?.required : []);
         const currRequired = new Set(Array.isArray(currentSchema?.required) ? currentSchema?.required : []);
+        // A removed input is breaking when the new schema rejects undeclared keys.
+        if (currentSchema?.additionalProperties === false) {
+            for (const propName of Object.keys(baseProps)) {
+                if (!(propName in currProps)) {
+                    issues.push({
+                        tool: toolName,
+                        type: "input_property_removed",
+                        severity: "breaking",
+                        path: `arguments.${propName}`,
+                        message: `Tool '${toolName}' no longer accepts input property '${propName}'`,
+                    });
+                }
+            }
+        }
         // Check newly required properties (breaking: existing callers won't provide them)
         for (const req of currRequired) {
             if (!baseRequired.has(req)) {
@@ -161,6 +175,8 @@ export class ContractDiff {
         }
         const baseProps = (baselineSchema.properties || {});
         const currProps = (currentSchema.properties || {});
+        const baseRequired = new Set(Array.isArray(baselineSchema.required) ? baselineSchema.required : []);
+        const currRequired = new Set(Array.isArray(currentSchema.required) ? currentSchema.required : []);
         // Check removed output properties (breaking: callers expecting that property will miss it)
         for (const propName of Object.keys(baseProps)) {
             if (!(propName in currProps)) {
@@ -170,6 +186,31 @@ export class ContractDiff {
                     severity: "breaking",
                     path: `output.${propName}`,
                     message: `Tool '${toolName}' removed output property '${propName}'`,
+                });
+                continue;
+            }
+            const currentProp = currProps[propName];
+            const baseTypes = this.normalizeTypes(baseProps[propName].type);
+            const currTypes = this.normalizeTypes(currentProp.type);
+            if (baseTypes.length > 0 &&
+                (currTypes.length === 0 ||
+                    baseTypes.length !== currTypes.length ||
+                    baseTypes.some((type) => !currTypes.includes(type)))) {
+                issues.push({
+                    tool: toolName,
+                    type: "output_type_changed",
+                    severity: "breaking",
+                    path: `output.${propName}`,
+                    message: `Tool '${toolName}' output '${propName}' changed type from '${baseTypes.join(" | ")}' to '${currTypes.join(" | ")}'`,
+                });
+            }
+            if (baseRequired.has(propName) && !currRequired.has(propName)) {
+                issues.push({
+                    tool: toolName,
+                    type: "output_required_removed",
+                    severity: "breaking",
+                    path: `output.${propName}`,
+                    message: `Tool '${toolName}' no longer guarantees output property '${propName}'`,
                 });
             }
         }

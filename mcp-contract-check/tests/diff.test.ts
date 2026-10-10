@@ -119,6 +119,7 @@ describe("ContractDiff", () => {
           properties: {
             id: { type: "string" }, // 'name' was removed!
           },
+          required: ["id"],
         },
       },
     ];
@@ -127,6 +128,30 @@ describe("ContractDiff", () => {
     expect(result.compatible).toBe(false);
     expect(result.breakingCount).toBe(1);
     expect(result.issues[0].type).toBe("output_property_removed");
+    expect(result.issues[0].path).toBe("output.name");
+  });
+
+  it("detects removed output required property as breaking change", () => {
+    const snapshot = ContractDiff.createSnapshot(baseTools);
+    const modifiedTools: ToolContract[] = [
+      {
+        name: "getUser",
+        inputSchema: baseTools[0].inputSchema,
+        outputSchema: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            name: { type: "string" },
+          },
+          required: ["id"], // 'name' is no longer guaranteed/required
+        },
+      },
+    ];
+
+    const result = ContractDiff.compare(snapshot, modifiedTools);
+    expect(result.compatible).toBe(false);
+    expect(result.breakingCount).toBe(1);
+    expect(result.issues[0].type).toBe("output_required_removed");
     expect(result.issues[0].path).toBe("output.name");
   });
 

@@ -6,6 +6,7 @@ export interface FuzzPayloadOptions {
     requiredOnly?: boolean;
 }
 export declare class SchemaFuzzer {
+    private static readonly MAX_RECURSION_DEPTH;
     /**
      * Checks whether the schema contains optional properties not listed in required.
      */
@@ -19,7 +20,7 @@ export declare class SchemaFuzzer {
      * @param options Fuzzing options such as requiredOnly.
      * @param rootSchema The root tool schema for resolving $ref pointers.
      */
-    static generateValidPayload(schema?: Record<string, unknown> | null, propName?: string, options?: FuzzPayloadOptions, rootSchema?: Record<string, unknown>): unknown;
+    static generateValidPayload(schema?: Record<string, unknown> | null, propName?: string, options?: FuzzPayloadOptions, rootSchema?: Record<string, unknown>, recursionDepth?: number): unknown;
     private static generateString;
     private static generateNumber;
     private static generateArray;

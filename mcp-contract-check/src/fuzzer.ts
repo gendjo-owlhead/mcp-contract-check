@@ -8,6 +8,8 @@ export interface FuzzPayloadOptions {
 }
 
 export class SchemaFuzzer {
+  private static readonly MAX_RECURSION_DEPTH = 32;
+
   /**
    * Checks whether the schema contains optional properties not listed in required.
    */
@@ -53,9 +55,18 @@ export class SchemaFuzzer {
     schema?: Record<string, unknown> | null,
     propName = "param",
     options?: FuzzPayloadOptions,
-    rootSchema?: Record<string, unknown>
+    rootSchema?: Record<string, unknown>,
+    recursionDepth = 0
   ): unknown {
     if (!schema || typeof schema !== "object" || Object.keys(schema).length === 0) {
+      return {};
+    }
+
+    // Recursive JSON Schemas are valid, but they may have no finite valid
+    // instance (for example, a required property that references itself).
+    // Bound generation so fuzzing reports a fixture/schema failure instead
+    // of overflowing the stack.
+    if (recursionDepth >= this.MAX_RECURSION_DEPTH) {
       return {};
     }
 
@@ -65,7 +76,7 @@ export class SchemaFuzzer {
     if ("$ref" in schema && typeof schema.$ref === "string") {
       const resolved = this.resolveRef(schema.$ref, effectiveRoot);
       if (resolved) {
-        return this.generateValidPayload(resolved, propName, options, effectiveRoot);
+        return this.generateValidPayload(resolved, propName, options, effectiveRoot, recursionDepth + 1);
       }
     }
 
@@ -86,10 +97,10 @@ export class SchemaFuzzer {
 
     // anyOf / oneOf: use the first variant
     if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
-      return this.generateValidPayload(schema.oneOf[0] as Record<string, unknown>, propName, options, effectiveRoot);
+      return this.generateValidPayload(schema.oneOf[0] as Record<string, unknown>, propName, options, effectiveRoot, recursionDepth + 1);
     }
     if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
-      return this.generateValidPayload(schema.anyOf[0] as Record<string, unknown>, propName, options, effectiveRoot);
+      return this.generateValidPayload(schema.anyOf[0] as Record<string, unknown>, propName, options, effectiveRoot, recursionDepth + 1);
     }
 
     // If type is an array of types, take the first non-null type
@@ -121,10 +132,10 @@ export class SchemaFuzzer {
         return true;
 
       case "array":
-        return this.generateArray(schema, propName, options, effectiveRoot);
+        return this.generateArray(schema, propName, options, effectiveRoot, recursionDepth);
 
       case "object":
-        return this.generateObject(schema, options, effectiveRoot);
+        return this.generateObject(schema, options, effectiveRoot, recursionDepth);
 
       case "null":
         return null;
@@ -231,7 +242,8 @@ export class SchemaFuzzer {
     schema: Record<string, unknown>,
     propName: string,
     options?: FuzzPayloadOptions,
-    rootSchema?: Record<string, unknown>
+    rootSchema?: Record<string, unknown>,
+    recursionDepth = 0
   ): unknown[] {
     let itemsSchema = schema.items as Record<string, unknown> | undefined;
     if (itemsSchema && typeof itemsSchema === "object" && "$ref" in itemsSchema && typeof itemsSchema.$ref === "string") {
@@ -247,7 +259,7 @@ export class SchemaFuzzer {
 
     for (let i = 0; i < count; i++) {
       if (itemsSchema) {
-        result.push(this.generateValidPayload(itemsSchema, `${propName}_item`, options, rootSchema || schema));
+        result.push(this.generateValidPayload(itemsSchema, `${propName}_item`, options, rootSchema || schema, recursionDepth + 1));
       } else {
         result.push("item");
       }
@@ -259,7 +271,8 @@ export class SchemaFuzzer {
   private static generateObject(
     schema: Record<string, unknown>,
     options?: FuzzPayloadOptions,
-    rootSchema?: Record<string, unknown>
+    rootSchema?: Record<string, unknown>,
+    recursionDepth = 0
   ): Record<string, unknown> {
     const result: Record<string, unknown> = {};
     const properties = (schema.properties || {}) as Record<string, Record<string, unknown>>;
@@ -268,7 +281,7 @@ export class SchemaFuzzer {
     // First generate all required properties
     for (const key of required) {
       if (properties[key]) {
-        result[key] = this.generateValidPayload(properties[key], key, options, rootSchema || schema);
+        result[key] = this.generateValidPayload(properties[key], key, options, rootSchema || schema, recursionDepth + 1);
       } else {
         result[key] = "test-value";
       }
@@ -278,7 +291,7 @@ export class SchemaFuzzer {
     if (!options?.requiredOnly) {
       for (const [key, propSchema] of Object.entries(properties)) {
         if (!(key in result)) {
-          result[key] = this.generateValidPayload(propSchema, key, options, rootSchema || schema);
+          result[key] = this.generateValidPayload(propSchema, key, options, rootSchema || schema, recursionDepth + 1);
         }
       }
     }

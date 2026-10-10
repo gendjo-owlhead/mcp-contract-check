@@ -14,7 +14,7 @@ export interface ContractSnapshot {
     tools: ToolContract[];
 }
 export type DriftSeverity = "breaking" | "non-breaking";
-export type DriftType = "tool_removed" | "tool_added" | "description_changed" | "input_required_added" | "input_enum_removed" | "input_type_narrowed" | "input_type_widened" | "output_property_removed" | "output_required_added";
+export type DriftType = "tool_removed" | "tool_added" | "description_changed" | "input_required_added" | "input_enum_removed" | "input_type_narrowed" | "input_type_widened" | "input_property_removed" | "output_property_removed" | "output_type_changed" | "output_required_removed";
 export interface DriftIssue {
     tool: string;
     type: DriftType;

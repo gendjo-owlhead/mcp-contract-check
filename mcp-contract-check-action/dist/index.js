@@ -44188,6 +44188,19 @@ var ContractDiff = class {
     const currProps = currentSchema?.properties || {};
     const baseRequired = new Set(Array.isArray(baselineSchema?.required) ? baselineSchema?.required : []);
     const currRequired = new Set(Array.isArray(currentSchema?.required) ? currentSchema?.required : []);
+    if (currentSchema?.additionalProperties === false) {
+      for (const propName of Object.keys(baseProps)) {
+        if (!(propName in currProps)) {
+          issues.push({
+            tool: toolName,
+            type: "input_property_removed",
+            severity: "breaking",
+            path: `arguments.${propName}`,
+            message: `Tool '${toolName}' no longer accepts input property '${propName}'`
+          });
+        }
+      }
+    }
     for (const req of currRequired) {
       if (!baseRequired.has(req)) {
         issues.push({
@@ -44261,6 +44274,8 @@ var ContractDiff = class {
     }
     const baseProps = baselineSchema.properties || {};
     const currProps = currentSchema.properties || {};
+    const baseRequired = new Set(Array.isArray(baselineSchema.required) ? baselineSchema.required : []);
+    const currRequired = new Set(Array.isArray(currentSchema.required) ? currentSchema.required : []);
     for (const propName of Object.keys(baseProps)) {
       if (!(propName in currProps)) {
         issues.push({
@@ -44269,6 +44284,28 @@ var ContractDiff = class {
           severity: "breaking",
           path: `output.${propName}`,
           message: `Tool '${toolName}' removed output property '${propName}'`
+        });
+        continue;
+      }
+      const currentProp = currProps[propName];
+      const baseTypes = this.normalizeTypes(baseProps[propName].type);
+      const currTypes = this.normalizeTypes(currentProp.type);
+      if (baseTypes.length > 0 && (currTypes.length === 0 || baseTypes.length !== currTypes.length || baseTypes.some((type) => !currTypes.includes(type)))) {
+        issues.push({
+          tool: toolName,
+          type: "output_type_changed",
+          severity: "breaking",
+          path: `output.${propName}`,
+          message: `Tool '${toolName}' output '${propName}' changed type from '${baseTypes.join(" | ")}' to '${currTypes.join(" | ")}'`
+        });
+      }
+      if (baseRequired.has(propName) && !currRequired.has(propName)) {
+        issues.push({
+          tool: toolName,
+          type: "output_required_removed",
+          severity: "breaking",
+          path: `output.${propName}`,
+          message: `Tool '${toolName}' no longer guarantees output property '${propName}'`
         });
       }
     }
@@ -44303,6 +44340,7 @@ import path from "node:path";
 
 // ../mcp-contract-check/dist/fuzzer.js
 var SchemaFuzzer = class {
+  static MAX_RECURSION_DEPTH = 32;
   /**
    * Checks whether the schema contains optional properties not listed in required.
    */
@@ -44337,15 +44375,18 @@ var SchemaFuzzer = class {
    * @param options Fuzzing options such as requiredOnly.
    * @param rootSchema The root tool schema for resolving $ref pointers.
    */
-  static generateValidPayload(schema, propName = "param", options, rootSchema) {
+  static generateValidPayload(schema, propName = "param", options, rootSchema, recursionDepth = 0) {
     if (!schema || typeof schema !== "object" || Object.keys(schema).length === 0) {
+      return {};
+    }
+    if (recursionDepth >= this.MAX_RECURSION_DEPTH) {
       return {};
     }
     const effectiveRoot = rootSchema || schema;
     if ("$ref" in schema && typeof schema.$ref === "string") {
       const resolved = this.resolveRef(schema.$ref, effectiveRoot);
       if (resolved) {
-        return this.generateValidPayload(resolved, propName, options, effectiveRoot);
+        return this.generateValidPayload(resolved, propName, options, effectiveRoot, recursionDepth + 1);
       }
     }
     if ("const" in schema) {
@@ -44358,10 +44399,10 @@ var SchemaFuzzer = class {
       return schema.default;
     }
     if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
-      return this.generateValidPayload(schema.oneOf[0], propName, options, effectiveRoot);
+      return this.generateValidPayload(schema.oneOf[0], propName, options, effectiveRoot, recursionDepth + 1);
     }
     if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
-      return this.generateValidPayload(schema.anyOf[0], propName, options, effectiveRoot);
+      return this.generateValidPayload(schema.anyOf[0], propName, options, effectiveRoot, recursionDepth + 1);
     }
     let rawType = schema.type;
     if (Array.isArray(rawType)) {
@@ -44385,9 +44426,9 @@ var SchemaFuzzer = class {
       case "boolean":
         return true;
       case "array":
-        return this.generateArray(schema, propName, options, effectiveRoot);
+        return this.generateArray(schema, propName, options, effectiveRoot, recursionDepth);
       case "object":
-        return this.generateObject(schema, options, effectiveRoot);
+        return this.generateObject(schema, options, effectiveRoot, recursionDepth);
       case "null":
         return null;
       default:
@@ -44473,7 +44514,7 @@ var SchemaFuzzer = class {
     }
     return schema.type === "integer" ? Math.round(val) : val;
   }
-  static generateArray(schema, propName, options, rootSchema) {
+  static generateArray(schema, propName, options, rootSchema, recursionDepth = 0) {
     let itemsSchema = schema.items;
     if (itemsSchema && typeof itemsSchema === "object" && "$ref" in itemsSchema && typeof itemsSchema.$ref === "string") {
       const resolved = this.resolveRef(itemsSchema.$ref, rootSchema || schema);
@@ -44486,20 +44527,20 @@ var SchemaFuzzer = class {
     const result = [];
     for (let i = 0; i < count; i++) {
       if (itemsSchema) {
-        result.push(this.generateValidPayload(itemsSchema, `${propName}_item`, options, rootSchema || schema));
+        result.push(this.generateValidPayload(itemsSchema, `${propName}_item`, options, rootSchema || schema, recursionDepth + 1));
       } else {
         result.push("item");
       }
     }
     return result;
   }
-  static generateObject(schema, options, rootSchema) {
+  static generateObject(schema, options, rootSchema, recursionDepth = 0) {
     const result = {};
     const properties = schema.properties || {};
     const required2 = Array.isArray(schema.required) ? schema.required : [];
     for (const key of required2) {
       if (properties[key]) {
-        result[key] = this.generateValidPayload(properties[key], key, options, rootSchema || schema);
+        result[key] = this.generateValidPayload(properties[key], key, options, rootSchema || schema, recursionDepth + 1);
       } else {
         result[key] = "test-value";
       }
@@ -44507,7 +44548,7 @@ var SchemaFuzzer = class {
     if (!options?.requiredOnly) {
       for (const [key, propSchema] of Object.entries(properties)) {
         if (!(key in result)) {
-          result[key] = this.generateValidPayload(propSchema, key, options, rootSchema || schema);
+          result[key] = this.generateValidPayload(propSchema, key, options, rootSchema || schema, recursionDepth + 1);
         }
       }
     }
